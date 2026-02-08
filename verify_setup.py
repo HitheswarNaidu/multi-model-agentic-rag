@@ -1,7 +1,10 @@
-import sys
-import shutil
-from pathlib import Path
+from __future__ import annotations
+
+import argparse
 import importlib
+import importlib.util
+import sys
+from pathlib import Path
 
 REQUIRED_PACKAGES = [
     "streamlit",
@@ -13,7 +16,7 @@ REQUIRED_PACKAGES = [
     "langchain",
     "pydantic",
     "pandas",
-    "dotenv"
+    "dotenv",
 ]
 
 REQUIRED_DIRS = [
@@ -21,53 +24,90 @@ REQUIRED_DIRS = [
     "data/indices/bm25",
     "data/indices/vector",
     "output/logs",
-    "output/answers"
+    "output/answers",
 ]
 
-def check_python():
-    print(f"✅ Python {sys.version.split()[0]}")
-    if sys.version_info < (3, 10):
-        print("❌ Warning: Python 3.10+ is recommended.")
 
-def check_imports():
-    print("\nChecking dependencies...")
-    all_good = True
+def check_python() -> bool:
+    print(f"Python {sys.version.split()[0]}")
+    return True
+
+
+def check_env(root: Path) -> bool:
+    env_path = root / ".env"
+    if env_path.exists():
+        print("OK: .env found")
+        return True
+    print("ERROR: .env missing. Copy .env.example to .env")
+    return False
+
+
+def check_dirs(root: Path) -> bool:
+    ok = True
+    for rel in REQUIRED_DIRS:
+        path = root / rel
+        if path.exists():
+            print(f"OK: {rel} exists")
+        else:
+            print(f"WARN: {rel} missing (app will create it)")
+            ok = ok and True
+    return ok
+
+
+def check_packages_quick() -> bool:
+    ok = True
+    print("Quick dependency probe (find_spec)...")
+    for pkg in REQUIRED_PACKAGES:
+        if importlib.util.find_spec(pkg) is None:
+            print(f"ERROR: {pkg} NOT FOUND")
+            ok = False
+        else:
+            print(f"OK: {pkg}")
+    return ok
+
+
+def check_packages_full() -> bool:
+    ok = True
+    print("Full dependency import check...")
     for pkg in REQUIRED_PACKAGES:
         try:
             importlib.import_module(pkg)
-            print(f"✅ {pkg}")
+            print(f"OK: {pkg}")
         except ImportError:
-            print(f"❌ {pkg} NOT FOUND")
-            all_good = False
-    return all_good
+            print(f"ERROR: {pkg} NOT FOUND")
+            ok = False
+    return ok
 
-def check_dirs():
-    print("\nChecking directories...")
+
+def run(mode: str) -> int:
     root = Path(__file__).parent
-    for d in REQUIRED_DIRS:
-        path = root / d
-        if path.exists():
-            print(f"✅ {d} exists")
-        else:
-            print(f"⚠️ {d} missing (will be created by app)")
+    print(f"=== Multimodal RAG Environment Check ({mode}) ===")
+    if not check_python():
+        return 2
+    if not check_env(root):
+        return 2
+    check_dirs(root)
 
-def check_env():
-    print("\nChecking configuration...")
-    env_path = Path(__file__).parent / ".env"
-    if env_path.exists():
-        print("✅ .env found")
-    else:
-        print("❌ .env missing. Copy .env.example to .env")
+    dep_ok = check_packages_full() if mode == "full" else check_packages_quick()
+    if not dep_ok:
+        print("ERROR: Missing dependencies. Install project requirements.")
+        return 1
 
-def main():
-    print("=== Multimodal RAG Environment Check ===\n")
-    check_python()
-    if not check_imports():
-        print("\n❌ Missing dependencies. Run: pip install -r requirements.txt")
-    else:
-        check_dirs()
-        check_env()
-        print("\n✅ Setup looks good! Run 'streamlit run app/main.py' to start.")
+    print("OK: Setup check passed.")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Environment verification for local launch.")
+    parser.add_argument(
+        "--mode",
+        choices=["quick", "full"],
+        default="quick",
+        help="quick=lightweight checks, full=import-heavy checks",
+    )
+    args = parser.parse_args()
+    return run(args.mode)
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

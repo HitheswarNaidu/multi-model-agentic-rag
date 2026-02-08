@@ -21,3 +21,23 @@ def test_chunk_blocks_windows():
     assert len(chunks) > 1
     # Ensure overlap allowed and all non-empty
     assert all(len(c.content) > 0 for c in chunks)
+
+
+def test_chunk_blocks_semantic_hybrid_metadata():
+    text = (
+        "# Intro\n"
+        "This is the first sentence. This is the second sentence.\n"
+        "## Methods\n"
+        "We used a robust method. Results are discussed later."
+    )
+    blocks = [Block(doc_id="d1", page=1, chunk_type="paragraph", text=text, confidence=0.9)]
+    chunks = chunk_blocks(
+        blocks,
+        doc_type="pdf",
+        max_chars=80,
+        overlap=10,
+        chunking_mode="semantic_hybrid",
+    )
+    assert len(chunks) >= 1
+    assert any(c.metadata.semantic_group_id for c in chunks)
+    assert any(c.metadata.boundary_reason for c in chunks)

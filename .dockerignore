@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+data/uploads/*
+data/indices/*
+data/processed/*
+output/*
+tests/*
+.ralph-state

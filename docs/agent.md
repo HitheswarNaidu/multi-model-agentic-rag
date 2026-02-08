@@ -1,110 +1,38 @@
-# Agent Design – Multimodal Agentic RAG
+# Agent Pipeline Design
 
-## Purpose
-The agent is the intelligent controller of the RAG pipeline. It dynamically decides how to search, combine, and validate information instead of using static retrieval.
+## End-to-End Flow
 
-## Responsibilities
-- Understand user intent
-- Select retrieval strategy
-- Apply metadata filters
-- Combine BM25 and vector results
-- Rerank candidates
-- Call LLM for synthesis
-- Validate answers
-- Retry when necessary
+1. User uploads docs from Chat UI.
+2. Pipeline queues ingestion job.
+3. Strict OCR preflight validates Docling assets.
+4. Parsed blocks are chunked and indexed (BM25 + vector).
+   - Chunking mode can be `window` or `semantic_hybrid`.
+   - PDF parsing strategy can be `fast_text_first`, `docling_first`, or `race`.
+   - Non-strict Docling OCR can be enabled with `DOCLING_OCR_AUTO=true`.
+5. User asks a question in Chat.
+6. Query rewrite/planning/retrieval executes by selected mode.
+7. One generation call returns answer + citations.
+8. Validation and structured events are persisted.
 
-## Agent Components
-### Intent Classifier
-Determines query type:
-- Numeric/table query
-- Definition query
-- Multi-hop reasoning
-- Image-related query
+## Modes
 
-### Planner
-Maps intent to strategy:
-- BM25-first
-- Vector-first
-- Hybrid parallel
-- Table-row focused
+- `default`:
+  - deterministic date rewrite
+  - fast retrieval path
+  - reranker/HyDE/decomposition/deep rewrite disabled
+- `deep`:
+  - optional advanced features from Admin toggles
 
-### Tools Available to Agent
-- bm25_search(query, filters)
-- vector_search(query)
-- hybrid_search(query)
-- table_row_search(query)
-- rerank(candidates)
-- call_llm(contexts)
-- validate(answer)
+## Diagnostics Model
 
-## Planner Logic
-Example rules:
-- If query contains numbers or currency → prioritize table chunks
-- If query requires exact terms → BM25-first
-- If query is conceptual → vector-first
-- Otherwise → hybrid retrieval
+- Human-friendly views in Data Store and Knowledge Graph.
+- Expert mode reveals raw metadata and traces.
+- Admin page centralizes runtime, OCR, and retrieval tuning.
+- Knowledge Graph uses a simplified interaction model: minimal controls + node detail + why-related explanations + chat bridge.
 
-## Retrieval Fusion
-Results from BM25 and vector search are combined using:
-- Reciprocal Rank Fusion
-- Weighted normalized scoring
-- Metadata boosts
+## Failure Behavior
 
-## Reranking
-- Optional cross-encoder model
-- Metadata-priority ranking
-- Diversity-aware selection
-
-## LLM Interaction
-Agent sends to LLM:
-- Top ranked contexts
-- Clear instructions
-- Metadata-prefixed chunks
-
-Expected LLM output:
-{
-  "answer": "...",
-  "fields": {},
-  "provenance": ["doc:chunk"]
-}
-
-## Validation Rules
-- Numeric sanity checks
-- Provenance existence
-- Conflict detection
-- Fallback to INSUFFICIENT_DATA when needed
-
-## Retry Mechanism
-If validation fails:
-- Reformulate query
-- Change retrieval mode
-- Focus on table rows
-- Increase top-k
-
-## Logging and Explainability
-Agent logs:
-- intent
-- strategy
-- retrieved chunks
-- scores
-- LLM output
-- validation result
-
-## Example Workflow
-1. User asks a question
-2. Agent classifies intent
-3. Planner selects hybrid retrieval
-4. BM25 + Vector executed
-5. Candidates reranked
-6. LLM generates answer
-7. Validator checks result
-8. Final structured answer returned
-
-## Boundaries
-- Agent must not hallucinate
-- Must always provide provenance
-- Must not bypass metadata rules
-- Must prefer evidence over creativity
-
-## Outcome
-The agent ensures that the RAG system is adaptive, explainable, accurate, context-aware, and reliable.
+- OCR config failure: ingestion blocked with `OCR_CONFIG_INVALID`.
+- LLM provider quota failure: explicit `LLM_QUOTA_EXHAUSTED` with clear user-facing error.
+- Summarization without provenance: blocked with `SUMMARY_PROVENANCE_MISSING`.
+- Startup index integrity issues: flagged and auto-switched to latest clean index when possible.

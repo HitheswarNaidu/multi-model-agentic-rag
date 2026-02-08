@@ -1,70 +1,50 @@
-# Multimodal Agentic RAG Context
+# Gemini Integration Notes
 
-## Project Overview
-This project is a **Multimodal Agentic RAG (Retrieval Augmented Generation)** system designed to process and query structured documents like PDFs, invoices, and reports. It goes beyond simple text extraction by preserving layout, tables, and contextual information.
+## Runtime
 
-**Key Features:**
-*   **Multimodal Parsing:** Uses `Docling` to understand document structure (tables, figures, layout).
-*   **Smart Chunking:** Metadata-aware chunking strategies (section-based, table-aware).
-*   **Hybrid Retrieval:** Combines BM25 (keyword) and Vector Search (semantic) for better accuracy.
-*   **Agentic Reasoning:** An agent layer plans retrieval strategies based on the user query.
-*   **Gemini Integration:** Uses Google's Gemini models for answer generation and reasoning.
-*   **Interactive UI:** A Streamlit dashboard for uploading documents, visualizing the knowledge graph, and querying.
+- LLM client: `src/rag/generation/llm_client.py`
+- Default answer path: single generation call in `mode=default`
+- Deep behaviors remain optional and toggleable in Admin
 
-## Architecture
+## Config
 
-### Directory Structure
-*   `src/rag/`: Core logic package.
-    *   `ingestion/`: Document parsing (Docling).
-    *   `chunking/`: Smart chunking logic.
-    *   `indexing/`: Management of BM25 and Vector indices.
-    *   `agent/`: Agentic planning and reasoning.
-    *   `generation/`: LLM interaction (Gemini).
-    *   `pipeline.py`: Main orchestration.
-    *   `config.py`: Configuration management.
-*   `app/`: Streamlit frontend application.
-    *   `pages/`: Individual UI pages (Upload, Query, Viewer, Graph, Settings).
-*   `data/`: Local storage for uploads, processed data, and indices.
-*   `docs/`: detailed documentation and specifications.
-*   `tests/`: Unit and end-to-end tests.
+Set in `.env`:
 
-### Tech Stack
-*   **Language:** Python 3.10+
-*   **Frameworks:** Streamlit, LangChain, Pydantic
-*   **AI/ML:** Google Gemini (via `google-genai` / `langchain-google-genai`), Sentence Transformers
-*   **Retrieval:** ChromaDB (Vector), Whoosh (BM25)
-*   **Parsing:** Docling
-*   **Tools:** Ruff, Black, Mypy, Pytest
-
-## Setup & Usage
-
-### 1. Environment Configuration
-The project uses `pydantic-settings` and requires a `.env` file in the root directory.
-*   Copy `.env.example` to `.env`.
-*   Set `GEMINI_API_KEY` (Required for generation).
-*   Other settings (defaults in `src/rag/config.py`): `EMBEDDING_MODEL`, `STREAMLIT_PORT`.
-
-### 2. Installation
-```bash
-pip install -r requirements.txt
+```env
+GEMINI_API_KEY=your_api_key
 ```
 
-### 3. Running the Application
-Start the Streamlit dashboard:
-```bash
-streamlit run app/main.py
-```
+If key is missing, the app runs with mock fallback behavior.
 
-### 4. Running Tests
-Run the test suite using `pytest`:
-```bash
-pytest
-```
-*   `tests/test_e2e.py` contains sanity checks.
+## UI Surfaces
 
-## Development Conventions
+Gemini-backed answers are shown in:
 
-*   **Code Style:** Adhere to `black` (formatting) and `ruff` (linting) standards.
-*   **Typing:** Use type hints; checking is enforced via `mypy`.
-*   **Testing:** New features must include unit tests. Use `pytest` fixtures where appropriate.
-*   **Documentation:** Update `docs/` when changing core architectural components.
+- `app/pages/1_💬_Chat.py`
+- graph selections from `app/pages/3_🕸️_Knowledge_Graph.py` can scope chat queries.
+- Knowledge Graph UI is intentionally minimal (simple 3D/2D + node details + ask-in-chat).
+
+with citations, latency, validation, and optional internals.
+
+## Failure Behavior
+
+Provider failures return structured fallback payloads and log error events to:
+
+- `output/logs/events.jsonl`
+
+Key error code:
+
+- `LLM_GENERATION_FAILED`
+- `LLM_QUOTA_EXHAUSTED` (provider 429 / `RESOURCE_EXHAUSTED`)
+- `SUMMARY_PROVENANCE_MISSING` (summarization with missing citations/provenance)
+
+Model payload parsing supports JSON code fences and malformed JSON fallback with:
+
+- `LLM_RESPONSE_PARSE_FAILED`
+
+## Debugging
+
+1. Confirm `GEMINI_API_KEY` is set.
+2. Check `events.jsonl` for `query_started`, `llm_finished`, `error`, `query_finished`.
+3. Correlate via `request_id`.
+4. For OCR-heavy/scanned PDFs, keep `DOCLING_OCR_AUTO=true` (or strict OCR with validated model paths).

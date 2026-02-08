@@ -1,70 +1,66 @@
-# RAG Edge Cases and Mitigations
+# Edge Cases
 
-One-page guide to common RAG failure modes, how to detect them, and how the agent should react with retrieval + validation + requery strategies.
+## Import Error at Startup
 
-## Common Problems
-- **Vague or underspecified queries:** Missing entity, time, or scope.
-- **Numeric/table lookups:** Numbers embedded in tables; unit mismatches; totals vs per-row ambiguity.
-- **Conflicting sources:** Multiple chunks disagree; stale vs updated versions.
-- **Sparse keyword hits:** Exact term exists only once; vector search may miss short strings.
-- **Long tables/sections:** Chunking splits rows; pagination splits tables across pages.
-- **Layout-sensitive content:** Headers/footers bleed into chunks; column order matters.
-- **Multilingual/mixed scripts:** Embeddings weaker across languages; OCR noise.
-- **Images/figures:** Key info in images; captions separated.
-- **Temporal scope:** Data changes over time; query lacks date.
-- **Provenance gaps:** Retrieved context doesn’t cover the answer fully.
-- **Agent/tool loops:** Repeated tool calls without progress.
+Symptom:
 
-## Agent Playbook
-1. **Classify intent:** numeric/table, definition, multi-hop, image-related, vague.
-2. **Select strategy:**
-   - Numeric/table → prioritize table_row_search + BM25 over table text; enforce unit checks.
-   - Exact terms → BM25-first; apply metadata filters (doc_type/page/section/chunk_type).
-   - Conceptual → vector-first; rerank with metadata boosts.
-   - Vague → ask LLM to propose clarifying questions; or re-query with inferred constraints, but mark low confidence.
-3. **Retrieval fusion:** use RRF/weighted scores; diversify sources (different pages/docs) before rerank.
-4. **Validation:**
-   - Check provenance covers each claim.
-   - Numeric sanity (range/unit/consistency across chunks).
-   - Conflict detection: if top chunks disagree, return INSUFFICIENT_DATA or present both with provenance.
-5. **Retry policy:**
-   - If low recall/conflict: widen filters, increase k, switch strategy (BM25↔vector), focus on tables.
-   - If vague: surface clarifying question to user; avoid guessing.
-   - If image-needed: flag and request OCR/vision path.
+- `ModuleNotFoundError: No module named 'app'`
 
-## Handling Vague Questions
-- Detect missing dimensions (who/what/where/when/version/unit).
-- Respond with a **clarifying question**; include a suggested scope based on top metadata (doc titles/sections).
-- If answering, prepend “Low confidence” and provide provenance + reasons for uncertainty.
+Mitigation:
 
-## Agentic Orchestration Edge Cases
-- **Tool loops:** cap retries; change strategy on each retry (e.g., switch BM25→vector, adjust filters).
-- **Empty/overlapping chunks:** fall back to larger window; ensure overlap for context but avoid duplicates in scoring.
-- **Timeouts/slow indexes:** degrade gracefully to single best retriever with conservative k.
-- **Missing provenance:** never emit answer without source; return INSUFFICIENT_DATA.
+- All Streamlit entry scripts now bootstrap root + `src` paths explicitly.
+- Restart stale Streamlit process and hard refresh browser.
 
-## Table-Specific Issues
-- Per-row chunks: ensure row-level chunk_type and table_id; include header row in metadata.
-- Cross-page tables: stitch adjacent page table chunks before answering.
-- Units: normalize (%, $, currencies); warn when mixed units detected.
-- Totals vs subtotals: detect “total/summary” tokens; prefer row context over isolated cells.
+## OCR Asset Misconfiguration
 
-## Numeric and Dates
-- Normalize numbers (thousands separators, percentages) before comparison.
-- Date ambiguity (MM/DD vs DD/MM): detect format from doc locale; flag uncertainty if unclear.
+Symptom:
 
-## Conflicting Sources
-- Present both values with provenance and note disagreement.
-- Prefer newer doc versions if version/date metadata available; otherwise mark conflict.
+- Ingestion fails quickly with `OCR_CONFIG_INVALID`.
 
-## Output & Logging
-- Always include provenance IDs and chunk metadata in answers.
-- Save answers to `output/answers/` and agent/retrieval logs to `output/logs/` for audit.
+Behavior:
 
-## Quick Checklist for the Agent
-- [ ] Is the query fully specified? If not, ask clarifying question.
-- [ ] Did retrieval cover relevant tables/rows and text sections?
-- [ ] Are numbers consistent and units aligned?
-- [ ] Do sources conflict? If yes, present both or return INSUFFICIENT_DATA.
-- [ ] Does every claim cite provenance?
-- [ ] If confidence is low, say so and explain why.
+- No silent fallback when strict OCR is enabled.
+- Missing env vars and missing files are surfaced clearly in Admin and job status.
+
+## OCR Misses on Scanned PDFs (Non-Strict Mode)
+
+- Keep `DOCLING_OCR_AUTO=true` so Docling parser path attempts OCR for low-text/scanned PDFs.
+- Check `parser_strategy_selected` events for `ocr_enabled=true` when validating behavior.
+
+## Query Before Index Ready
+
+- Chat page keeps index status visible.
+- If user asks early, assistant returns guidance to finish indexing first.
+
+## Partial Ingestion Failures
+
+- Per-file failures are recorded in job status and logs.
+- Successful files remain indexed.
+
+## Provider Failures
+
+- Query still returns structured fallback answer.
+- Error code is logged (`LLM_GENERATION_FAILED`) with request correlation.
+- Quota failures are explicit (`LLM_QUOTA_EXHAUSTED`) and shown as user-facing error banners.
+
+## Demo/Test Index Contamination
+
+- Startup integrity check can detect suspicious catalogs (`doc1`, known demo markers).
+- Runtime auto-switches to the latest clean index when available.
+- If no clean index exists, integrity warning remains visible in Admin diagnostics.
+
+## Slow PDF Ingestion
+
+- Default strategy is `fast_text_first` to avoid Docling-only latency spikes.
+- Fallback behavior is logged via `parser_strategy_selected` and `parser_fallback_used`.
+
+## Summarize Returns Invalid
+
+- Strict provenance is required for summaries.
+- Missing summary citations now raise `SUMMARY_PROVENANCE_MISSING`.
+
+## Large Knowledge Graphs
+
+- Node cap defaults to 300 and warns when truncated.
+- Use doc filter and node cap to reduce rendering load.
+- 3D view intentionally avoids dense labels for readability.

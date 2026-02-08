@@ -1,5 +1,5 @@
-import pytest
 from rag.validation.validator import validate_answer
+
 
 def test_validator_basic_success():
     payload = {
@@ -52,7 +52,7 @@ def test_validator_conflict_flag():
 
 def test_validator_currency_prefix():
     # Answer: $500. Retrieval: 500 USD.
-    # Logic: 
+    # Logic:
     # Answer parsed as (500, $)
     # Retrieval parsed as (500, USD)
     # Unit conflict? $ vs USD.
@@ -60,16 +60,16 @@ def test_validator_currency_prefix():
     # "$" and "USD" are disjoint strings. This might flag a false positive conflict.
     # However, let's just check extraction first.
     from rag.validation.validator import _numeric_with_units
-    
+
     extracted = _numeric_with_units("$500")
     assert extracted == [("500", "$")]
-    
+
     extracted2 = _numeric_with_units("500 USD")
     assert extracted2 == [("500", "USD")]
 
 def test_validator_trailing_dot():
     from rag.validation.validator import _numeric_tokens
-    
+
     tokens = _numeric_tokens("It was 100.")
     assert "100" in tokens
     assert "100." not in tokens

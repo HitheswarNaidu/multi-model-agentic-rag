@@ -1,60 +1,69 @@
 # Quickstart
 
-## 1) Environment
-- Python 3.13 (tested), Windows.
-- Create/activate venv:
-  ```powershell
-  python -m venv .venv
-  .\.venv\Scripts\Activate.ps1
-  ```
-- Install deps:
-  ```powershell
-  pip install -r requirements.txt
-  ```
+## 1) Install
 
-## 2) Configure
-Create `.env` (or set env vars):
-```
-GEMINI_API_KEY=your_key_here   # leave empty to use mock LLM
-EMBEDDING_MODEL=all-MiniLM-L6-v2
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-## 3) Cache models (offline-friendly)
-- Embeddings (MiniLM) are already cached under `%USERPROFILE%\.cache\huggingface\hub`. If needed, prewarm:
-  ```powershell
-  .\.venv\Scripts\Activate.ps1
-  python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
-  ```
-- RapidOCR (Option A: default cache):
-  ```powershell
-  $env:RAPIDOCR_HOME="$env:USERPROFILE\.rapidocr"
-  .\.venv\Scripts\Activate.ps1
-  python -c "from rapidocr_onnxruntime import RapidOCR; o=RapidOCR(); print(getattr(o, 'model_dir', 'model_dir not exposed'))"
-  ```
-  This downloads PP-OCRv4 det/rec/cls models into `%USERPROFILE%\.rapidocr`.
+## 2) Configure `.env`
 
-## 4) Run the app
-```powershell
-.\.venv\Scripts\Activate.ps1
-streamlit run app/main.py --server.fileWatcherType none
+Minimum:
+
+```env
+GEMINI_API_KEY=
+EMBEDDING_MODEL=all-mpnet-base-v2
+VECTOR_ENABLED=false
+DOCLING_OCR_FORCE=false
+PDF_PARSE_STRATEGY=fast_text_first
+PDF_TEXT_MIN_CHARS=300
+CHUNKING_MODE=window
+DOCLING_OCR_AUTO=true
+IGNORE_TEST_DEMO_INDEXES=true
 ```
-Open http://localhost:8501.
 
-## 5) Workflow
-- Place files in `data/uploads/`.
-- In **Document Upload** page, click **Index data/uploads** to build BM25/vector/hybrid indices.
-- In **Query Interface**, select a document (or All) and ask a question; view answer, provenance, retrieval, validation.
-- **Data Store Viewer**: inspect saved answers and indexed chunks.
-- **Document Graph**: interactive graph (requires pyvis; handled by optional import).
+Enable strict OCR only if you have all RapidOCR assets:
 
-## 6) Testing
-```powershell
-.\.venv\Scripts\Activate.ps1
-pytest
+```env
+DOCLING_OCR_FORCE=true
+DOCLING_OCR_DET_MODEL_PATH=...
+DOCLING_OCR_CLS_MODEL_PATH=...
+DOCLING_OCR_REC_MODEL_PATH=...
+DOCLING_OCR_REC_KEYS_PATH=...
+DOCLING_OCR_FONT_PATH=...
 ```
-Uses MiniLM to avoid paging issues; all tests should pass.
 
-## 7) Common issues
-- Paging file too small: stay on `all-MiniLM-L6-v2` (default) or increase paging file.
-- RapidOCR missing paths: rerun Step 3 (RapidOCR Option A) to populate `%USERPROFILE%\.rapidocr`.
-- If chroma warns about EmbeddingFunction.name(): safe to ignore for now.
+With `DOCLING_OCR_AUTO=true` (default), non-strict runs will still attempt Docling OCR on scanned/low-text PDFs when Docling parser path is used.
+With `IGNORE_TEST_DEMO_INDEXES=true` (default), startup auto-ignores suspicious demo/test indexes when a clean index is available.
+
+## 3) Launch
+
+```bash
+run_app.bat
+```
+
+Optional full verify before launch:
+
+```bash
+run_app.bat --check
+```
+
+## 4) Use the App
+
+1. Open `Chat` page.
+2. Upload files in the UI.
+3. Click `Upload + Start Indexing`.
+4. Ask questions after index is ready.
+   - For summaries, keep at least one document selected to enforce provenance.
+5. Inspect Data Store / Knowledge Graph / Admin as needed.
+   - In Knowledge Graph: use simple 3D/2D view, optionally filter by document, select a node, inspect details + why-related, and use `Ask Chat about this node`.
+
+## 5) Verify
+
+```bash
+ruff check src app tests
+pytest -q
+python src/batch_runner.py data/sample_questions.json --eval --mode default --max-invalid-rate 0.20 --max-p95-latency-ms 2500 --min-citation-hit-rate 0.80
+```

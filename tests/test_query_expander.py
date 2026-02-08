@@ -1,6 +1,7 @@
 from rag.agent.query_expander import QueryExpander
 from rag.generation.llm_client import MockLLMClient
 
+
 def test_query_expansion():
     # Mock LLM returns a structured response
     mock_response = {
@@ -9,7 +10,7 @@ def test_query_expansion():
     }
     client = MockLLMClient(payload=mock_response)
     expander = QueryExpander(client)
-    
+
     expanded = expander.expand("test query")
     assert len(expanded) == 3
     assert expanded[0] == "1. Alternative One" or "Alternative One" in expanded[0]

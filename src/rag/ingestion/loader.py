@@ -1,14 +1,14 @@
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 SUPPORTED_EXTS = {".pdf", ".docx", ".png", ".jpg", ".jpeg"}
 
 
-def iter_documents(root: Path) -> List[Path]:
+def iter_documents(root: Path) -> list[Path]:
     root = root.resolve()
     if not root.exists():
         raise FileNotFoundError(f"Path not found: {root}")
-    files: List[Path] = []
+    files: list[Path] = []
     for p in root.rglob("*"):
         if p.is_file() and p.suffix.lower() in SUPPORTED_EXTS:
             files.append(p)
@@ -24,8 +24,8 @@ def validate_file(path: Path) -> Path:
     return path
 
 
-def load_batch(paths: Iterable[Path]) -> List[Path]:
-    validated: List[Path] = []
+def load_batch(paths: Iterable[Path]) -> list[Path]:
+    validated: list[Path] = []
     for p in paths:
         path_obj = Path(p)
         try:

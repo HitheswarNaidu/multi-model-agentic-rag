@@ -25,7 +25,10 @@ def test_validation_ok():
 
 
 def test_validation_numeric_unsubstantiated():
-    res = validate_answer({"answer": "Value is 123", "provenance": ["c1"]}, retrieval=[{"content": "no numbers here"}])
+    res = validate_answer(
+        {"answer": "Value is 123", "provenance": ["c1"]},
+        retrieval=[{"content": "no numbers here"}],
+    )
     assert res["valid"] is False
     assert "numeric_unsubstantiated" in res["issues"]
 

@@ -24,7 +24,7 @@ def test_pipeline_ingest_and_query(tmp_path: Path, monkeypatch):
     # Ensure no external LLM required
     monkeypatch.setenv("GEMINI_API_KEY", "")
     # Use lightweight embedding model to avoid large downloads during tests
-    monkeypatch.setenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    monkeypatch.setenv("EMBEDDING_MODEL", "hash-embedding")
 
     p = Pipeline()
     # Act

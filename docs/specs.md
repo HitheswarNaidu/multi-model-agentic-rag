@@ -1,130 +1,78 @@
-# Multimodal Agentic RAG for Structured Document Analysis
+# System Specification
 
-## Overview
-This project builds an intelligent Retrieval Augmented Generation (RAG) system designed for complex structured documents such as PDFs, invoices, reports, and forms. The system combines:
+## Scope
 
-- Docling-based document parsing
-- Smart metadata-aware chunking
-- Hybrid retrieval using BM25 + Vector Search
-- An agentic reasoning layer to plan retrieval strategies
-- Large Language Model generation with provenance tracking
+Local Agentic RAG with chat-first UX, strict OCR preflight, and structured auditability.
 
-The goal is to answer user queries accurately from structured documents while preserving layout, tables, and contextual information.
+## UI Architecture
 
-## Problem Statement
-Current document QA systems face multiple limitations:
-- Most RAG systems treat documents as plain text and ignore tables, images, and layout.
-- Naive chunking breaks semantic boundaries.
-- Vector-only retrieval misses exact terms and numbers.
-- Keyword-only retrieval lacks semantic understanding.
-- Static RAG pipelines cannot reason or adapt.
+Pages:
 
-These issues result in inaccurate answers and unreliable document understanding.
+- `app/pages/1_💬_Chat.py` (primary)
+- `app/pages/2_🗄️_Data_Store.py`
+- `app/pages/3_🕸️_Knowledge_Graph.py`
+- `app/pages/4_🛠️_Admin.py`
 
-## Proposed Solution
-The proposed system addresses these issues through:
-- Multimodal parsing using Docling
-- Metadata-first smart chunking
-- Hybrid retrieval (BM25 + Vector)
-- Agentic planning for dynamic retrieval
-- Structured, provenance-backed answers
+Knowledge Graph control contract:
+- Minimal controls only (`3D/2D`, document filter, node cap, node selection).
+- Node details must show what a node contains and why relationships exist.
 
-The system aims to outperform traditional RAG pipelines in accuracy, reliability, and explainability.
+Entry script:
 
-## System Architecture
-High-level flow:
-User Query → Agent Planner → Hybrid Retriever (BM25 + Vector + Metadata) → Reranker → LLM → Validator → Structured Answer
+- `app/main.py` (startup + redirect to Chat)
 
-### Core Components
-1. Ingestion Layer – Accepts PDFs, DOCX, and images
-2. Parsing Layer – Docling converts documents into structured blocks
-3. Chunking Layer – Logical metadata-aware chunk creation
-4. Indexing Layer – BM25 index + Vector DB
-5. Agent Layer – Decides retrieval strategy
-6. Generation Layer – LLM answer synthesis
-7. Validation Layer – Consistency and provenance checks
+## Backend Interfaces
 
-## Data Model and Metadata
-Each chunk stored in the system contains:
-- doc_id
-- doc_type
-- page
-- section
-- chunk_id
-- chunk_type (paragraph, table, row, figure)
-- table_id (if applicable)
-- confidence score
+`src/rag/pipeline.py` public methods:
 
-### Metadata-First Chunk Format
-Every stored chunk begins with metadata:
+- `start_ingestion_job(...) -> str`
+- `start_ingestion_job_for_uploads(uploaded_files, ...) -> dict`
+- `get_ingestion_job(job_id) -> dict | None`
+- `query_fast(question, filters=None, mode='default') -> dict`
+- `query(...)` compatibility wrapper
 
-[doc_id: X] [page: Y] [section: Z] [chunk_type: table] <actual content>
+Stable `query_fast` fields:
 
-This enables filtering, explainability, and better LLM grounding.
+- `request_id`
+- `timing_ms`
+- `quality`
+- `latency_ms` alias
 
-## Smart Chunking Strategy
-- Section-based chunks
-- Table-aware chunks
-- Per-row table chunks
-- Figure + caption chunks
-- Overlap windows for long sections
-- Logical boundary preservation
+## Retrieval Behavior
 
-## Retrieval Strategy
-### Hybrid Retrieval
-- BM25 for exact matching
-- Vector search for semantic similarity
-- Fusion using weighted scoring or reciprocal rank fusion
+- Fast mode is default.
+- Deep helpers are explicit feature flags:
+  - reranker
+  - HyDE
+  - deep rewrite
+  - decomposition
+- Summarization requires grounded provenance from retrieved chunk ids.
+- Filters support `doc_id` and `doc_ids`.
 
-### Metadata Filtering
-Retrieval can be restricted by:
-- document type
-- page range
-- section name
-- chunk type
+## OCR Contract
 
-### Reranking
-Optional cross-encoder reranker to improve top-k selection.
+- `DOCLING_OCR_FORCE=true` requires valid OCR model asset paths.
+- Ingestion fails fast with `OCR_CONFIG_INVALID` when assets are missing.
+- Non-strict PDF parse strategy is configurable via `PDF_PARSE_STRATEGY`.
+- `DOCLING_OCR_AUTO=true` allows best-effort Docling OCR in non-strict parser flows.
 
-## LLM Generation Rules
-- Use only retrieved context
-- Always return structured JSON
-- Provide provenance for each answer
-- Return INSUFFICIENT_DATA when evidence is lacking
+## Index Integrity Contract
 
-## Validation
-- Numeric normalization
-- Cross-check across multiple chunks
-- Provenance verification
-- Consistency checks
+- `IGNORE_TEST_DEMO_INDEXES=true` enables startup detection of suspicious demo/test catalogs.
+- Suspicious active indexes can be auto-switched to the latest clean version.
+- No destructive deletion is performed by default (switch-first policy).
 
-## Evaluation Plan
-Metrics:
-- Retrieval: MRR, Recall@k
-- QA: Exact Match, F1
-- Extraction: Field accuracy
+## Logging Contract
 
-Baselines:
-- Text-only RAG
-- Vector-only RAG
-- Hybrid RAG without agent
+All runtime events in:
 
-Ablations:
-- Without BM25
-- Without metadata
-- Without agentic planning
+- `output/logs/events.jsonl`
 
-## Tech Stack
-- Python
-- Docling
-- BM25 (Whoosh/ElasticSearch)
-- FAISS/ChromaDB
-- Sentence Transformers
-- LangChain
-- OpenAI / Local LLMs
+Important events:
 
-## Deliverables
-- Working prototype
-- Evaluation results
-- Research report
-- Demo interface
+- `query_started`, `retrieval_finished`, `llm_finished`, `validation_finished`, `query_finished`
+- `ingestion_job_started`, `ingestion_job_progress`, `ingestion_job_finished`, `ingestion_failed`
+- `ocr_config_validated`, `ocr_config_error`
+- `parser_strategy_selected`, `parser_fallback_used`, `summary_provenance_missing`
+- `index_integrity_checked`, `index_integrity_flagged`, `index_auto_switched`
+- `kg_view_loaded`, `kg_node_selected`, `kg_subgraph_expanded`, `kg_filter_applied`, `kg_chat_bridge_invoked`

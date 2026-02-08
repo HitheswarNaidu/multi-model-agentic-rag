@@ -1,0 +1,44 @@
+[
+  {
+    "id": "q01_summary_revenue",
+    "question": "Summarize the revenue figures from the table.",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": ["revenue"]
+  },
+  {
+    "id": "q02_conclusion",
+    "question": "What is the main conclusion of the document?",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "q03_dates",
+    "question": "List all dates mentioned in the text.",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": ["date"]
+  },
+  {
+    "id": "q04_numeric_lookup",
+    "question": "What is the total amount mentioned in the document?",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "q05_scope_clarification",
+    "question": "data",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": []
+  },
+  {
+    "id": "q06_temporal_resolution",
+    "question": "How did performance change last year?",
+    "filters": null,
+    "expected_chunks": [],
+    "expected_answer_contains": []
+  }
+]

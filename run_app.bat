@@ -16,18 +16,29 @@ if not exist .venv (
     exit /b
 )
 
-call .venv\Scripts\activate
-echo Environment activated.
+set "RUN_CHECK=0"
+if /I "%~1"=="--check" set "RUN_CHECK=1"
 
-echo Checking setup...
-python verify_setup.py
-if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Setup check failed.
-    pause
-    exit /b
+set "PYTHONPATH=%CD%;%CD%\src;%PYTHONPATH%"
+
+if "%RUN_CHECK%"=="1" (
+    echo Running full setup check...
+    .venv\Scripts\python.exe verify_setup.py --mode full
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Full setup check failed.
+        pause
+        exit /b
+    )
+) else (
+    echo Running quick setup check...
+    .venv\Scripts\python.exe verify_setup.py --mode quick
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Quick setup check failed. Run run_app.bat --check for details.
+        pause
+        exit /b
+    )
 )
 
-echo.
 echo Launching Streamlit...
-streamlit run app/main.py
+.venv\Scripts\python.exe -m streamlit run app/main.py
 pause
