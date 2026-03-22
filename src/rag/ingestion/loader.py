@@ -1,7 +1,12 @@
 from collections.abc import Iterable
 from pathlib import Path
 
-SUPPORTED_EXTS = {".pdf", ".docx", ".png", ".jpg", ".jpeg"}
+SUPPORTED_EXTS = {
+    ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls",
+    ".csv", ".tsv", ".rtf", ".txt", ".epub",
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".webp",
+    ".html", ".htm", ".xml",
+}
 
 
 def iter_documents(root: Path) -> list[Path]:
@@ -31,6 +36,5 @@ def load_batch(paths: Iterable[Path]) -> list[Path]:
         try:
             validated.append(validate_file(path_obj))
         except FileNotFoundError as exc:
-            # Normalize to ValueError for caller consistency
             raise ValueError(str(exc)) from exc
     return validated
