@@ -32,7 +32,6 @@ from app.utils.session import (
     set_selected_graph_node,
     start_pipeline_prewarm,
 )
-from rag.ingestion.parser import OCRConfigurationError, validate_docling_ocr_assets
 
 st.set_page_config(page_title="Chat | Multimodal Agentic RAG", layout="wide")
 start_pipeline_prewarm()
@@ -57,18 +56,12 @@ left, right = st.columns([2.0, 1.0], gap="large")
 
 with left:
     st.subheader("Upload and Index")
-    ocr_preflight_ok = True
-    ocr_preflight_message = ""
-    if pipeline.settings.docling_ocr_force:
-        try:
-            validate_docling_ocr_assets(pipeline.settings)
-        except OCRConfigurationError as exc:
-            ocr_preflight_ok = False
-            ocr_preflight_message = str(exc)
-            st.warning(
-                "Strict Docling OCR is enabled, but OCR model paths are not configured. "
-                "Open Admin page and run `Test OCR Setup`."
-            )
+    parse_preflight_ok = bool(pipeline.settings.llama_cloud_api_key)
+    if not parse_preflight_ok:
+        st.warning(
+            "LLAMA_CLOUD_API_KEY is not set. File parsing will fail. "
+            "Configure it in .env or the Admin page."
+        )
 
     uploaded_files = st.file_uploader(
         "Drop files here",
@@ -106,7 +99,7 @@ with left:
             "Upload + Start Indexing",
             type="primary",
             width="stretch",
-            disabled=not ocr_preflight_ok,
+            disabled=not parse_preflight_ok,
         ):
             result = pipeline.start_ingestion_job_for_uploads(
                 uploaded_files=uploaded_files or [],
@@ -138,8 +131,8 @@ with left:
                     st.caption(f"Saved {saved_count} uploaded file(s) to data/uploads.")
             else:
                 st.warning("No files uploaded.")
-    if not ocr_preflight_ok and ocr_preflight_message:
-        st.caption(ocr_preflight_message)
+    if not parse_preflight_ok:
+        st.caption("Set LLAMA_CLOUD_API_KEY in .env to enable document parsing.")
 
     with c2:
         if st.button("Refresh job status", width="stretch"):

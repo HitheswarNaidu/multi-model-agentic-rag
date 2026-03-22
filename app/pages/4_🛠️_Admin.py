@@ -81,7 +81,8 @@ if new_bm25 != bm25_weight or new_vector != vector_weight:
     pipeline.update_retriever_weights(new_bm25, new_vector)
 
 st.subheader("Provider Status")
-st.caption(f"Parser: LlamaParse ({'configured' if settings.llama_cloud_api_key else 'missing key'})")
+parse_status = "configured" if settings.llama_cloud_api_key else "missing key"
+st.caption(f"Parser: LlamaParse ({parse_status})")
 st.caption(f"Embeddings: NVIDIA ({settings.embedding_model})")
 st.caption(f"LLM chain: {settings.llm_fallback_chain}")
 

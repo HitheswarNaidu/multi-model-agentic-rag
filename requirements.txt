@@ -7,7 +7,7 @@ pydantic-settings>=2.0.0
 pandas>=2.0.0
 
 # Document Processing
-llama-cloud-services>=1.0
+llama-parse>=0.6.0
 
 # Indexing
 whoosh>=2.7.4

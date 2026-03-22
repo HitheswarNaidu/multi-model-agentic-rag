@@ -44,7 +44,7 @@ def parse_document(path: Path, settings: Settings | None = None) -> DocumentPars
             "Obtain a key from https://cloud.llamaindex.ai/api-key"
         )
 
-    from llama_cloud_services import LlamaParse
+    from llama_parse import LlamaParse
 
     try:
         parser = LlamaParse(
