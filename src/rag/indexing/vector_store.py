@@ -37,61 +37,44 @@ class HashEmbeddingFunction(EmbeddingFunction):
         return HashEmbeddingFunction(dimension=int(config.get("dimension", 64)))
 
 
-class SentenceTransformerEmbeddingFunction(EmbeddingFunction):
+class NVIDIAEmbeddingFunction(EmbeddingFunction):
     def __init__(
         self,
-        model_name: str = "all-mpnet-base-v2",
-        encode_batch_size: int = 32,
-        device: str | None = None,
+        model_name: str = "nvidia/llama-nemotron-embed-1b-v2",
+        api_key: str = "",
+        truncate: str = "END",
     ) -> None:
         self.model_name = model_name
-        self.encode_batch_size = max(1, int(encode_batch_size))
-        self.device = device or self._auto_device()
-        self.model = None
+        self.api_key = api_key
+        self.truncate = truncate
+        self._embedder = None
 
-    @staticmethod
-    def _auto_device() -> str:
-        try:
-            import torch
+    def _get_embedder(self):
+        if self._embedder is None:
+            from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 
-            return "cuda" if torch.cuda.is_available() else "cpu"
-        except Exception:
-            return "cpu"
+            self._embedder = NVIDIAEmbeddings(
+                model=self.model_name,
+                api_key=self.api_key,
+                truncate=self.truncate,
+            )
+        return self._embedder
 
     def __call__(self, input: Sequence[str]) -> Embeddings:
-        model = self._get_model()
-        return model.encode(
-            list(input),
-            batch_size=self.encode_batch_size,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-        ).tolist()
-
-    def _get_model(self):
-        if self.model is None:
-            from sentence_transformers import SentenceTransformer
-
-            self.model = SentenceTransformer(self.model_name, device=self.device)
-        return self.model
+        embedder = self._get_embedder()
+        return embedder.embed_documents(list(input))
 
     @staticmethod
     def name() -> str:
-        return "sentence-transformer"
+        return "nvidia-embedding"
 
     def get_config(self) -> dict:
-        return {
-            "model_name": self.model_name,
-            "encode_batch_size": self.encode_batch_size,
-            "device": self.device,
-        }
+        return {"model_name": self.model_name, "truncate": self.truncate}
 
     @staticmethod
     def build_from_config(config: dict):
-        model_name = config.get("model_name", "all-mpnet-base-v2")
-        return SentenceTransformerEmbeddingFunction(
-            model_name=model_name,
-            encode_batch_size=int(config.get("encode_batch_size", 32)),
-            device=config.get("device"),
+        return NVIDIAEmbeddingFunction(
+            model_name=config.get("model_name", "nvidia/llama-nemotron-embed-1b-v2"),
         )
 
 
@@ -99,18 +82,18 @@ class VectorStore:
     def __init__(
         self,
         collection_name: str = "chunks",
-        embedding_model: str = "all-mpnet-base-v2",
+        embedding_model: str = "nvidia/llama-nemotron-embed-1b-v2",
         embedding_batch_size: int = 32,
         client: Client | None = None,
         embedding_fn: EmbeddingFunction | None = None,
         collection=None,
         persist_directory: str | None = None,
+        nvidia_api_key: str = "",
     ) -> None:
         if client is not None:
             self.client = client
         else:
             if persist_directory:
-                # New-style persistent client (avoids deprecated chroma_db_impl settings)
                 self.client = chromadb.PersistentClient(path=persist_directory)
             else:
                 self.client = chromadb.Client()
@@ -120,9 +103,9 @@ class VectorStore:
         elif embedding_model == "hash-embedding":
             self.embedding_fn = HashEmbeddingFunction()
         else:
-            self.embedding_fn = SentenceTransformerEmbeddingFunction(
-                embedding_model,
-                encode_batch_size=self.embedding_batch_size,
+            self.embedding_fn = NVIDIAEmbeddingFunction(
+                model_name=embedding_model,
+                api_key=nvidia_api_key,
             )
         if collection is not None:
             self.collection = collection
