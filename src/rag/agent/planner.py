@@ -76,20 +76,6 @@ class Planner:
             # General intent
             steps.append(PlanStep(tool="hybrid_search", k=6, note=f"General. {temporal_note}"))
 
-        # Fast mode removes auxiliary expansion/decomposition complexity.
-        if mode != "deep":
-            filtered_steps = []
-            for s in steps:
-                if s.tool in {
-                    "bm25_search",
-                    "vector_search",
-                    "hybrid_search",
-                    "table_row_search",
-                    "summarize_doc",
-                }:
-                    filtered_steps.append(s)
-            steps = filtered_steps or [PlanStep(tool="hybrid_search", k=6, note="Fast default")]
-
         return Plan(intent=intent, steps=steps)
 
     def execute(
@@ -102,10 +88,9 @@ class Planner:
         filters = filters or {}
         results: list[dict] = []
 
-        # 1. Handle Multi-Hop Reasoning (deep mode only)
+        # 1. Handle Multi-Hop Reasoning
         if (
-            mode == "deep"
-            and self.enable_decomposition
+            self.enable_decomposition
             and plan.intent == "multi_hop"
             and self.decomposer
         ):
@@ -117,7 +102,7 @@ class Planner:
 
         # 2. Determine main queries to run (original + expanded)
         queries_to_run = [query]
-        if mode == "deep" and self.expander and plan.intent in ("general", "clarification"):
+        if self.expander and plan.intent in ("general", "clarification"):
             expanded = self.expander.expand(query)
             if expanded:
                 queries_to_run.append(expanded[0])
@@ -142,11 +127,10 @@ class Planner:
                 elif step.tool == "bm25_search":
                     results.extend(self.tools.bm25_search(q, filters, k=step.k))
                 elif step.tool == "vector_search":
-                    # Use HyDE in deep mode to bridge semantic gap for vector retrieval.
+                    # Use HyDE to bridge semantic gap for vector retrieval.
                     search_query = q
                     if (
-                        mode == "deep"
-                        and self.enable_hyde
+                        self.enable_hyde
                         and self.hyde
                         and plan.intent in ("definition", "general")
                     ):
