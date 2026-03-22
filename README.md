@@ -10,10 +10,10 @@ Local, feature-rich Agentic RAG with a chat-first multipage Streamlit UI.
   - `Knowledge Graph`
   - `Admin`
 - Upload happens directly in the Chat page (`st.file_uploader`) with auto-queued background indexing.
-- OCR strict mode is optional (`DOCLING_OCR_FORCE=false` by default).
-- PDF parsing strategy is configurable (`PDF_PARSE_STRATEGY=fast_text_first` default).
-- Vector retrieval/embeddings are optional (`VECTOR_ENABLED=false` by default, BM25-only mode).
-- Fast path remains default; deep features (HyDE, reranker, deep rewrite, decomposition) are admin-controlled.
+- Document parsing via LlamaParse cloud API (`LLAMA_CLOUD_API_KEY`).
+- Vector retrieval ON by default (`VECTOR_ENABLED=true`) with NVIDIA embeddings (`nvidia/llama-nemotron-embed-1b-v2`).
+- All advanced RAG features (HyDE, reranker, query rewrite, decomposition) ON by default.
+- LLM via configurable fallback chain: Groq (primary) + OpenRouter (fallback) via `LLM_FALLBACK_CHAIN`.
 
 ## Run
 
@@ -33,36 +33,26 @@ Direct fallback:
 python -m streamlit run app/main.py
 ```
 
-## Optional OCR Configuration
+## Required API Keys
 
-Set these in `.env` only if you enable strict OCR mode:
+Set these in `.env`:
 
 ```env
-DOCLING_OCR_FORCE=true
-DOCLING_OCR_DET_MODEL_PATH=...
-DOCLING_OCR_CLS_MODEL_PATH=...
-DOCLING_OCR_REC_MODEL_PATH=...
-DOCLING_OCR_REC_KEYS_PATH=...
-DOCLING_OCR_FONT_PATH=...
+LLAMA_CLOUD_API_KEY=...       # LlamaParse document parsing
+NVIDIA_API_KEY=...            # NVIDIA embedding API (nvidia/llama-nemotron-embed-1b-v2)
+GROQ_API_KEY=...              # Groq LLM (primary)
+OPENROUTER_API_KEY=...        # OpenRouter LLM (fallback)
 ```
 
-If strict mode is enabled and paths are missing/invalid, ingestion fails with
-`OCR_CONFIG_INVALID` and a missing-path list.
-
-Optional parser/chunking controls:
+Optional configuration:
 
 ```env
-PDF_PARSE_STRATEGY=fast_text_first
-PDF_TEXT_MIN_CHARS=300
+LLM_FALLBACK_CHAIN=groq,openrouter   # Configurable provider chain
 CHUNKING_MODE=window
-DOCLING_OCR_AUTO=true
 IGNORE_TEST_DEMO_INDEXES=true
 ```
 
-- `fast_text_first`: uses PyMuPDF first for speed, falls back to Docling when needed.
-- `docling_first`: preserves legacy behavior.
-- `race`: attempts both and picks the better extraction.
-- `DOCLING_OCR_AUTO=true`: in non-strict mode, Docling OCR is attempted when Docling parser path is used (helps scanned/image PDFs).
+- `LLM_FALLBACK_CHAIN`: comma-separated list of LLM providers to try in order.
 - `IGNORE_TEST_DEMO_INDEXES=true`: startup will auto-ignore/switch away from suspicious demo/test indexes.
 
 ## Runtime Guardrails
@@ -70,15 +60,15 @@ IGNORE_TEST_DEMO_INDEXES=true
 - Startup index integrity checks detect suspicious demo/test catalogs and auto-switch to the latest clean index when available.
 - LLM quota failures are surfaced explicitly as `LLM_QUOTA_EXHAUSTED` (not silent/ambiguous).
 
-## Optional Vector/Embeddings Configuration
+## Vector/Embeddings Configuration
 
 ```env
-VECTOR_ENABLED=false
-EMBEDDING_MODEL=all-mpnet-base-v2
+VECTOR_ENABLED=true                                    # ON by default
+EMBEDDING_MODEL=nvidia/llama-nemotron-embed-1b-v2     # NVIDIA embedding model
 ```
 
-When `VECTOR_ENABLED=false`, the app uses BM25-only retrieval and does not require
-embedding initialization.
+Vector retrieval is enabled by default using NVIDIA embeddings via API.
+Set `VECTOR_ENABLED=false` to fall back to BM25-only retrieval.
 
 ## Architecture
 
@@ -91,9 +81,9 @@ embedding initialization.
   - document filter
   - node cap
   - node detail panel with “why related” explanations and ask-in-chat bridge
-- `app/pages/4_🛠️_Admin.py`: OCR validation, retrieval toggles, maintenance.
+- `app/pages/4_🛠️_Admin.py`: provider status, retrieval toggles, maintenance.
 - `src/rag/pipeline.py`: ingestion jobs, query orchestration, audit events.
-- `src/rag/ingestion/parser.py`: strict Docling OCR preflight + typed OCR errors.
+- `src/rag/ingestion/parser.py`: LlamaParse cloud document parsing.
 
 ## Observability
 
@@ -106,13 +96,9 @@ Correlation IDs:
 - query: `request_id`
 - ingestion: `job_id`
 
-OCR events:
+Runtime events:
 
-- `ocr_config_validated`
-- `ocr_config_error`
 - `ingestion_failed`
-- `parser_strategy_selected`
-- `parser_fallback_used`
 - `kg_view_loaded`
 - `kg_node_selected`
 - `kg_subgraph_expanded`

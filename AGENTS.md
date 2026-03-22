@@ -7,14 +7,14 @@ Repository rules for agent-assisted implementation and review.
 - Chat-first multipage UX is the default information architecture:
   - `Chat`, `Data Store`, `Knowledge Graph`, `Admin`
 - UI upload and auto-queued indexing are required.
-- Strict Docling OCR mode is optional (`DOCLING_OCR_FORCE=false` default).
-- Vector retrieval is optional (`VECTOR_ENABLED=false` default, BM25-only supported).
+- LlamaParse cloud parsing via `LLAMA_CLOUD_API_KEY`.
+- Vector retrieval is ON by default (NVIDIA embeddings via `NVIDIA_API_KEY`).
 
 ## Core Principles
 
-- Keep fast path (`mode=default`) low-latency and predictable.
-- Keep deep features optional and explicitly toggleable.
-- No unauditable behavior: query/ingestion flows must emit structured events.
+- All advanced RAG features (HyDE, query rewrite, decomposition, reranker) are ON by default.
+- LLM provider chain is configurable via `LLM_FALLBACK_CHAIN` (Groq primary, OpenRouter fallback).
+- No unauditable behavior: query/ingestion flows must emit structured events with LLM provider tracking.
 
 ## Mandatory Verification Before Completion
 
@@ -42,10 +42,11 @@ Required IDs:
 - query: `request_id`
 - ingestion: `job_id`
 
-OCR validation events are mandatory:
+LLM provider tracking events are required:
 
-- `ocr_config_validated`
-- `ocr_config_error`
+- `_llm_provider`
+- `_llm_model`
+- `_llm_fallback_used`
 
 ## Documentation Expectation
 
@@ -53,7 +54,7 @@ When behavior changes, update:
 
 - `README.md`
 - `CHANGELOG.md`
-- `GEMINI.md`
+- `AGENTS.md`
 - `CLAUDE.md`
 - `docs/specs.md`
 - `docs/agent.md`

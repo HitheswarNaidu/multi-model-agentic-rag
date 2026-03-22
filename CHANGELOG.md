@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING**: Replaced PyMuPDF/Docling/RapidOCR with LlamaParse cloud parser
+- **BREAKING**: Replaced SentenceTransformers with NVIDIA embedding API (nvidia/llama-nemotron-embed-1b-v2)
+- **BREAKING**: Replaced Gemini LLM with Groq (primary) + OpenRouter (fallback) via configurable LLM_FALLBACK_CHAIN
+- All advanced RAG features (HyDE, query rewrite, decomposition, reranker) now ON by default
+- Vector retrieval now ON by default (VECTOR_ENABLED=true)
+
+### Added
+- LLM_FALLBACK_CHAIN env var for user-configurable provider chain
+- LLAMA_CLOUD_API_KEY, NVIDIA_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY env vars
+- LLM provider/model tracking in audit events (_llm_provider, _llm_model, _llm_fallback_used)
+- Provider status display in Admin page
+
+### Removed
+- GEMINI_API_KEY env var
+- All DOCLING_OCR_* env vars (6 fields)
+- PDF_PARSE_STRATEGY, PDF_TEXT_MIN_CHARS, FAST_PATH_ENABLED env vars
+- pymupdf, docling, rapidocr-onnxruntime, python-docx, sentence-transformers, google-genai, langchain-google-genai dependencies
+- OCR validation section in Admin page
+- PDF parse strategy controls in Admin page
+
+## [0.2.0] - Chat-First Multipage Architecture
+
 ### Added
 - Chat-first multipage Streamlit IA:
   - `app/pages/1_💬_Chat.py`
