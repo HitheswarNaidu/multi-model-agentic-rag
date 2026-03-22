@@ -20,10 +20,8 @@ def _build_pipeline(tmp_path: Path, monkeypatch) -> Pipeline:
     monkeypatch.setattr(pipeline_mod, "ANSWERS_DIR", tmp_path / "output" / "answers")
     monkeypatch.setattr(pipeline_mod, "LOGS_DIR", tmp_path / "output" / "logs")
 
-    monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("EMBEDDING_MODEL", "hash-embedding")
     monkeypatch.setenv("VECTOR_ENABLED", "false")
-    monkeypatch.setenv("FAST_PATH_ENABLED", "true")
 
     return Pipeline()
 
@@ -41,7 +39,6 @@ def test_vector_conflict_falls_back_to_bm25_only(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "ANSWERS_DIR", tmp_path / "output" / "answers")
     monkeypatch.setattr(pipeline_mod, "LOGS_DIR", tmp_path / "output" / "logs")
 
-    monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("EMBEDDING_MODEL", "all-mpnet-base-v2")
     monkeypatch.setenv("VECTOR_ENABLED", "true")
     get_settings.cache_clear()
@@ -83,7 +80,7 @@ def test_query_fast_returns_audit_fields(tmp_path, monkeypatch):
     assert "total_ms" in response["latency_ms"]
 
 
-def test_query_wrapper_respects_fast_path_flag(tmp_path, monkeypatch):
+def test_query_wrapper_delegates_to_query_fast(tmp_path, monkeypatch):
     p = _build_pipeline(tmp_path, monkeypatch)
 
     called = {}
@@ -94,13 +91,8 @@ def test_query_wrapper_respects_fast_path_flag(tmp_path, monkeypatch):
 
     monkeypatch.setattr(p, "query_fast", _fake_query_fast)
 
-    p.settings.fast_path_enabled = True
     p.query("test")
     assert called["mode"] == "default"
-
-    p.settings.fast_path_enabled = False
-    p.query("test")
-    assert called["mode"] == "deep"
 
 
 def test_start_ingestion_job_and_read_status(tmp_path, monkeypatch):
@@ -150,7 +142,9 @@ def test_query_fast_llm_failure_falls_back_and_logs_error(tmp_path, monkeypatch)
     def _boom(*args, **kwargs):
         raise RuntimeError("quota exceeded")
 
-    monkeypatch.setattr(p.llm, "generate", _boom)
+    # Patch only the executor's direct LLM call so the query expander (retrieval
+    # phase) still works, while the generation-phase call raises.
+    monkeypatch.setattr(p.executor, "llm", type("FakeLLM", (), {"generate": staticmethod(_boom)})())
 
     response = p.query_fast("hello")
     assert response["error"]["code"] == "LLM_GENERATION_FAILED"
@@ -174,7 +168,9 @@ def test_query_fast_quota_failure_maps_to_explicit_code(tmp_path, monkeypatch):
     def _boom(*args, **kwargs):
         raise RuntimeError("429 RESOURCE_EXHAUSTED quota exceeded")
 
-    monkeypatch.setattr(p.llm, "generate", _boom)
+    # Patch only the executor's direct LLM call so the query expander (retrieval
+    # phase) still works, while the generation-phase call raises.
+    monkeypatch.setattr(p.executor, "llm", type("FakeLLM", (), {"generate": staticmethod(_boom)})())
 
     response = p.query_fast("hello")
     assert response["error"]["code"] == "LLM_QUOTA_EXHAUSTED"

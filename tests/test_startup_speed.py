@@ -38,7 +38,6 @@ def test_pipeline_lazy_init_and_warmup(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "OUTPUT_DIR", tmp_path / "output")
     monkeypatch.setattr(pipeline_mod, "ANSWERS_DIR", tmp_path / "output" / "answers")
     monkeypatch.setattr(pipeline_mod, "LOGS_DIR", tmp_path / "output" / "logs")
-    monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("EMBEDDING_MODEL", "hash-embedding")
 
     p = Pipeline(lazy_init=True)

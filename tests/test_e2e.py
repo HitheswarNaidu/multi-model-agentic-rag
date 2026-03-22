@@ -21,8 +21,6 @@ def test_pipeline_ingest_and_query(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(pipeline_mod, "ANSWERS_DIR", tmp_path / "output" / "answers")
     monkeypatch.setattr(pipeline_mod, "LOGS_DIR", tmp_path / "output" / "logs")
 
-    # Ensure no external LLM required
-    monkeypatch.setenv("GEMINI_API_KEY", "")
     # Use lightweight embedding model to avoid large downloads during tests
     monkeypatch.setenv("EMBEDDING_MODEL", "hash-embedding")
 

@@ -6,11 +6,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from rag.config import Settings
-from rag.ingestion.parser import Block, DocumentParseResult, LlamaParseError, parse_document
+from rag.ingestion.parser import LlamaParseError, parse_document
 
-# Create a fake llama_cloud_services module so the lazy import inside
+# Create a fake llama_parse module so the lazy import inside
 # parse_document resolves without the real package installed.
-_fake_llama_mod = ModuleType("llama_cloud_services")
+_fake_llama_mod = ModuleType("llama_parse")
 _fake_llama_mod.LlamaParse = MagicMock  # type: ignore[attr-defined]
 
 
@@ -25,8 +25,8 @@ def _mock_result(pages_md):
     return result
 
 
-@patch.dict(sys.modules, {"llama_cloud_services": _fake_llama_mod})
-@patch("llama_cloud_services.LlamaParse")
+@patch.dict(sys.modules, {"llama_parse": _fake_llama_mod})
+@patch("llama_parse.LlamaParse")
 def test_parse_pdf_returns_blocks(mock_cls, tmp_path):
     pdf = tmp_path / "test.pdf"
     pdf.write_bytes(b"%PDF-1.4 fake")
@@ -43,8 +43,8 @@ def test_parse_pdf_returns_blocks(mock_cls, tmp_path):
     assert result.parse_meta["parser_used"] == "llamaparse"
 
 
-@patch.dict(sys.modules, {"llama_cloud_services": _fake_llama_mod})
-@patch("llama_cloud_services.LlamaParse")
+@patch.dict(sys.modules, {"llama_parse": _fake_llama_mod})
+@patch("llama_parse.LlamaParse")
 def test_parse_empty_result_raises(mock_cls, tmp_path):
     pdf = tmp_path / "empty.pdf"
     pdf.write_bytes(b"%PDF-1.4 fake")
@@ -67,8 +67,8 @@ def test_parse_file_not_found():
         parse_document(Path("/nonexistent/file.pdf"))
 
 
-@patch.dict(sys.modules, {"llama_cloud_services": _fake_llama_mod})
-@patch("llama_cloud_services.LlamaParse")
+@patch.dict(sys.modules, {"llama_parse": _fake_llama_mod})
+@patch("llama_parse.LlamaParse")
 def test_parse_docx(mock_cls, tmp_path):
     docx = tmp_path / "test.docx"
     docx.write_bytes(b"fake docx")

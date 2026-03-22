@@ -32,7 +32,14 @@ def test_nvidia_embedding_lazy_init():
 
 
 def test_vector_store_uses_hash_for_test():
+    import chromadb
+
     from rag.indexing.vector_store import VectorStore
 
-    vs = VectorStore(embedding_model="hash-embedding")
+    client = chromadb.Client()
+    vs = VectorStore(
+        embedding_model="hash-embedding",
+        client=client,
+        collection_name="test_hash_check",
+    )
     assert isinstance(vs.embedding_fn, HashEmbeddingFunction)

@@ -13,7 +13,7 @@ def test_validate_file_supports_known_types(tmp_path: Path):
 
 
 def test_validate_file_rejects_unknown(tmp_path: Path):
-    f = tmp_path / "sample.txt"
+    f = tmp_path / "sample.xyz"
     f.write_bytes(b"test")
     with pytest.raises(ValueError):
         validate_file(f)
@@ -22,7 +22,7 @@ def test_validate_file_rejects_unknown(tmp_path: Path):
 def test_iter_documents_finds_supported_files(tmp_path: Path):
     (tmp_path / "a.pdf").write_bytes(b"a")
     (tmp_path / "b.docx").write_bytes(b"b")
-    (tmp_path / "ignore.txt").write_bytes(b"x")
+    (tmp_path / "ignore.xyz").write_bytes(b"x")
     found = iter_documents(tmp_path)
     names = {p.name for p in found}
     assert names == {"a.pdf", "b.docx"}

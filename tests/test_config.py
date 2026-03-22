@@ -1,6 +1,4 @@
-import pytest
-
-from rag.config import Settings, get_settings
+from rag.config import Settings
 
 
 def test_new_api_key_fields():
@@ -17,7 +15,10 @@ def test_new_api_key_fields():
 
 
 def test_new_defaults():
-    s = Settings()
+    s = Settings(
+        vector_enabled=True,
+        embedding_model="nvidia/llama-nemotron-embed-1b-v2",
+    )
     assert s.vector_enabled is True
     assert s.hyde_enabled is True
     assert s.deep_rewrite_enabled is True
