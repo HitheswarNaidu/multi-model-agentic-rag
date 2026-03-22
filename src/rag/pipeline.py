@@ -22,12 +22,7 @@ from rag.indexing.bm25_index import BM25Index
 from rag.indexing.hybrid_retriever import HybridRetriever
 from rag.indexing.vector_store import NoOpVectorStore, VectorStore
 from rag.ingestion.loader import iter_documents
-from rag.ingestion.parser import (
-    DoclingParseError,
-    OCRConfigurationError,
-    parse_document,
-    validate_docling_ocr_assets,
-)
+from rag.ingestion.parser import LlamaParseError, parse_document
 from rag.utils.audit_logger import AuditLogger, hash_query, new_request_id, utc_now_iso
 from rag.utils.index_registry import IndexRegistry
 from rag.utils.job_store import JobStore
@@ -93,8 +88,16 @@ class Pipeline:
                 self.hybrid.weight_bm25 = 1.0
                 self.hybrid.weight_vector = 0.0
             self.tools = AgentTools(self.bm25, self.vector, self.hybrid)
-            llm_key = self.settings.gemini_api_key
-            self.llm = LLMClient(api_key=llm_key) if llm_key else MockLLMClient()
+            has_llm_key = bool(self.settings.groq_api_key or self.settings.openrouter_api_key)
+            self.llm = (
+                LLMClient(
+                    groq_api_key=self.settings.groq_api_key,
+                    openrouter_api_key=self.settings.openrouter_api_key,
+                    fallback_chain=self.settings.llm_fallback_chain,
+                )
+                if has_llm_key
+                else MockLLMClient()
+            )
             self.planner = Planner(self.tools, self.llm)
             self.planner.set_deep_features(
                 enable_hyde=self.settings.hyde_enabled,
@@ -257,6 +260,7 @@ class Pipeline:
                 persist_directory=persist_directory,
                 embedding_model=self.settings.embedding_model,
                 embedding_batch_size=self.settings.embedding_batch_size,
+                nvidia_api_key=self.settings.nvidia_api_key,
             )
         except Exception as exc:
             self.settings.vector_enabled = False
@@ -421,10 +425,9 @@ class Pipeline:
                 mode="ingestion",
                 quality={
                     "file": str(path),
-                    "strategy": parse_meta.get("parser_strategy", self.settings.pdf_parse_strategy),
+                    "strategy": parse_meta.get("parser_strategy", "llamaparse"),
                     "parser_used": parse_meta.get("parser_used"),
                     "text_chars": parse_meta.get("text_chars", 0),
-                    "ocr_enabled": bool(parse_meta.get("ocr_enabled", False)),
                 },
                 durations_ms={"parse_ms": round(parse_ms, 2)},
             )
@@ -437,7 +440,7 @@ class Pipeline:
                         "file": str(path),
                         "strategy": parse_meta.get(
                             "parser_strategy",
-                            self.settings.pdf_parse_strategy,
+                            "llamaparse",
                         ),
                         "parser_used": parse_meta.get("parser_used"),
                         "fallback_from": parse_meta.get("fallback_from"),
@@ -502,14 +505,12 @@ class Pipeline:
                             "chunks": len(file_chunks),
                         }
                     )
-                except OCRConfigurationError:
-                    raise
-                except DoclingParseError as exc:
+                except LlamaParseError as exc:
                     errors.append(
                         {
                             "file": str(file_path),
                             "error": str(exc),
-                            "error_code": DoclingParseError.code,
+                            "error_code": LlamaParseError.code,
                         }
                     )
                     file_statuses.append(
@@ -517,7 +518,7 @@ class Pipeline:
                             "file": str(file_path),
                             "status": "failed",
                             "error": str(exc),
-                            "error_code": DoclingParseError.code,
+                            "error_code": LlamaParseError.code,
                         }
                     )
                 except Exception as exc:
@@ -704,27 +705,6 @@ class Pipeline:
         chunking_mode: str | None = None,
         progress_cb: Callable[[dict], None] | None = None,
     ) -> dict:
-        if self.settings.docling_ocr_force:
-            try:
-                ocr_info = validate_docling_ocr_assets(self.settings)
-                self.audit_logger.log_event(
-                    "ocr_config_validated",
-                    mode="ingestion",
-                    counts={"asset_count": len(ocr_info.get("model_paths", {}))},
-                )
-            except OCRConfigurationError as exc:
-                self.audit_logger.log_event(
-                    "ocr_config_error",
-                    mode="ingestion",
-                    error={
-                        "code": exc.code,
-                        "message": str(exc),
-                        "missing_fields": exc.missing_fields,
-                        "missing_paths": exc.missing_paths,
-                    },
-                )
-                raise
-
         total_t0 = perf_counter()
         parse_summary = self.parse_chunk_parallel(
             job_id=job_id,
@@ -941,28 +921,6 @@ class Pipeline:
                 },
                 error=None,
             )
-        except OCRConfigurationError as exc:
-            self.job_store.update_job(
-                job_id,
-                {
-                    "status": "failed",
-                    "error": str(exc),
-                    "error_code": exc.code,
-                    "missing_fields": exc.missing_fields,
-                    "missing_paths": exc.missing_paths,
-                },
-            )
-            self.audit_logger.log_event(
-                "ingestion_failed",
-                job_id=job_id,
-                mode="ingestion",
-                error={
-                    "code": exc.code,
-                    "message": str(exc),
-                    "missing_fields": exc.missing_fields,
-                    "missing_paths": exc.missing_paths,
-                },
-            )
         except Exception as exc:
             self.job_store.update_job(
                 job_id,
@@ -988,49 +946,6 @@ class Pipeline:
         files: list[Path] | None = None,
     ) -> str:
         files = files if files is not None else iter_documents(UPLOAD_DIR)
-        if self.settings.docling_ocr_force:
-            try:
-                validate_docling_ocr_assets(self.settings)
-            except OCRConfigurationError as exc:
-                job_id = self.job_store.create_job(
-                    {
-                        "status": "failed",
-                        "files_detected": len(files),
-                        "processed_files": 0,
-                        "files_indexed": 0,
-                        "chunks_indexed": 0,
-                        "errors": [],
-                        "error": str(exc),
-                        "error_code": exc.code,
-                        "missing_fields": exc.missing_fields,
-                        "missing_paths": exc.missing_paths,
-                        "queued_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                )
-                self.audit_logger.log_event(
-                    "ocr_config_error",
-                    job_id=job_id,
-                    mode="ingestion",
-                    error={
-                        "code": exc.code,
-                        "message": str(exc),
-                        "missing_fields": exc.missing_fields,
-                        "missing_paths": exc.missing_paths,
-                    },
-                )
-                self.audit_logger.log_event(
-                    "ingestion_failed",
-                    job_id=job_id,
-                    mode="ingestion",
-                    error={
-                        "code": exc.code,
-                        "message": str(exc),
-                        "missing_fields": exc.missing_fields,
-                        "missing_paths": exc.missing_paths,
-                    },
-                )
-                return job_id
-
         job_id = self.job_store.create_job(
             {
                 "status": "queued",
@@ -1073,13 +988,10 @@ class Pipeline:
         normalized_mode = mode if mode in {"default", "deep"} else "default"
         question_hash = hash_query(question)
         feature_flags = {
-            "fast_path_enabled": bool(self.settings.fast_path_enabled),
             "reranker_enabled": bool(self.settings.reranker_enabled),
-            "hyde_enabled": bool(self.settings.hyde_enabled) and normalized_mode == "deep",
-            "decomposition_enabled": bool(self.settings.decomposition_enabled)
-            and normalized_mode == "deep",
-            "deep_rewrite_enabled": bool(self.settings.deep_rewrite_enabled)
-            and normalized_mode == "deep",
+            "hyde_enabled": bool(self.settings.hyde_enabled),
+            "decomposition_enabled": bool(self.settings.decomposition_enabled),
+            "deep_rewrite_enabled": bool(self.settings.deep_rewrite_enabled),
         }
         normalized_filters = self._normalize_filters(filters)
 
@@ -1253,8 +1165,7 @@ class Pipeline:
             raise
 
     def query(self, question: str, filters: dict | None = None) -> dict:
-        mode = "default" if self.settings.fast_path_enabled else "deep"
-        return self.query_fast(question=question, filters=filters, mode=mode)
+        return self.query_fast(question=question, filters=filters, mode="default")
 
     def saved_chunks(self) -> list[dict]:
         if not self.cached_chunks:
@@ -1328,9 +1239,6 @@ class Pipeline:
         self._ensure_runtime_initialized()
         return not isinstance(self.vector, NoOpVectorStore)
 
-    def set_fast_path_enabled(self, enabled: bool) -> None:
-        self.settings.fast_path_enabled = enabled
-
     def set_hyde_enabled(self, enabled: bool) -> None:
         self._ensure_runtime_initialized()
         self.settings.hyde_enabled = enabled
@@ -1359,8 +1267,6 @@ class Pipeline:
             "embedding_batch_size": int(self.settings.embedding_batch_size),
             "vector_upsert_batch_size": int(self.settings.vector_upsert_batch_size),
             "bm25_commit_batch_size": int(self.settings.bm25_commit_batch_size),
-            "pdf_parse_strategy": str(self.settings.pdf_parse_strategy),
-            "pdf_text_min_chars": int(self.settings.pdf_text_min_chars),
             "chunking_mode": str(self.settings.chunking_mode),
             "index_swap_mode": str(self.settings.index_swap_mode),
         }
@@ -1372,8 +1278,6 @@ class Pipeline:
         embedding_batch_size: int,
         vector_upsert_batch_size: int,
         bm25_commit_batch_size: int,
-        pdf_parse_strategy: str,
-        pdf_text_min_chars: int,
         chunking_mode: str,
         index_swap_mode: str,
     ) -> dict:
@@ -1384,12 +1288,6 @@ class Pipeline:
         self.settings.embedding_batch_size = max(1, min(int(embedding_batch_size), 256))
         self.settings.vector_upsert_batch_size = max(1, min(int(vector_upsert_batch_size), 2048))
         self.settings.bm25_commit_batch_size = max(1, min(int(bm25_commit_batch_size), 8192))
-        allowed_pdf_strategy = {"fast_text_first", "docling_first", "race"}
-        strategy = str(pdf_parse_strategy or "fast_text_first")
-        self.settings.pdf_parse_strategy = (
-            strategy if strategy in allowed_pdf_strategy else "fast_text_first"
-        )
-        self.settings.pdf_text_min_chars = max(1, min(int(pdf_text_min_chars), 10000))
         self.settings.chunking_mode = (
             "semantic_hybrid" if str(chunking_mode) == "semantic_hybrid" else "window"
         )
@@ -1403,8 +1301,6 @@ class Pipeline:
             embedding_batch_size=32,
             vector_upsert_batch_size=64,
             bm25_commit_batch_size=256,
-            pdf_parse_strategy="fast_text_first",
-            pdf_text_min_chars=300,
             chunking_mode="window",
             index_swap_mode="atomic_swap",
         )

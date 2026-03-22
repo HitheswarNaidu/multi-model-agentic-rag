@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-# Ensure src/ is on path for tests
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -25,9 +24,12 @@ def temp_docs(tmp_path: Path) -> Path:
 
 @pytest.fixture(autouse=True)
 def default_test_settings(monkeypatch):
-    # Keep parser behavior lightweight for most tests unless a test overrides it.
-    monkeypatch.setenv("DOCLING_OCR_FORCE", "false")
     monkeypatch.setenv("EMBEDDING_MODEL", "hash-embedding")
+    monkeypatch.setenv("LLAMA_CLOUD_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "")
+    monkeypatch.setenv("NVIDIA_API_KEY", "")
+    monkeypatch.setenv("VECTOR_ENABLED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
