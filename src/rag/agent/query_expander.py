@@ -15,9 +15,6 @@ class QueryExpander:
             f"User question: {query}"
         )
         # We reuse the LLM client but with an empty context list as we just want generation
-        response = self.llm.generate(contexts=[], query=prompt)
-
-        # Parse the 'answer' field which contains the generated text
-        text = response.get("answer", "")
+        text = self.llm.call_raw(prompt)
         expanded = [line.strip("- ").strip() for line in text.split("\n") if line.strip()]
         return expanded[:3]

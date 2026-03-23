@@ -14,6 +14,5 @@ class HydeGenerator:
             f"Hypothetical Passage:"
         )
 
-        response = self.llm.generate(contexts=[], query=prompt)
-        text = response.get("answer", "").strip()
+        text = self.llm.call_raw(prompt).strip()
         return text

@@ -13,6 +13,7 @@ llama-parse>=0.6.0
 whoosh>=2.7.4
 chromadb>=0.4.0
 langchain-nvidia-ai-endpoints>=0.3.0
+requests>=2.31.0
 
 # Agent & LLM
 langchain>=0.1.0
@@ -20,9 +21,10 @@ langchain-groq>=0.2.0
 langchain-openai>=0.2.0
 langchain-community>=0.0.10
 
-# Streamlit Dashboard
-streamlit>=1.30.0
-streamlit-option-menu>=0.3.6
+# FastAPI Backend
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.6
 
 # Visualization
 plotly>=5.18.0
@@ -35,6 +37,4 @@ pytest-cov>=4.1.0
 pytest-asyncio>=0.21.0
 
 # Dev
-black>=23.0.0
 ruff>=0.1.0
-mypy>=1.0.0

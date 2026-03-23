@@ -19,30 +19,27 @@ run_app.bat --check
 - Streamlit multipage app
 - Chat-first interaction model
 - Data Store and Knowledge Graph diagnostics
-- Admin operations and OCR controls
-- BM25-only retrieval by default (`VECTOR_ENABLED=false`)
+- Admin operations and provider controls
+- Hybrid retrieval ON by default (BM25 + Vector with NVIDIA embeddings)
 - Knowledge Graph supports 2D and 3D rendering modes.
 - Knowledge Graph includes minimal controls (view mode, document filter, node cap, node selection).
 
-## OCR Asset Paths (Only for Strict OCR Mode)
+## Required API Keys
 
-Strict OCR mode is optional. Only when `DOCLING_OCR_FORCE=true`, set:
+Set in `.env`:
 
-- `DOCLING_OCR_DET_MODEL_PATH`
-- `DOCLING_OCR_CLS_MODEL_PATH`
-- `DOCLING_OCR_REC_MODEL_PATH`
-- `DOCLING_OCR_REC_KEYS_PATH`
-- `DOCLING_OCR_FONT_PATH`
-
-If invalid/missing, ingestion fails fast with clear diagnostics.
+```env
+LLAMA_CLOUD_API_KEY=...       # LlamaParse document parsing
+NVIDIA_API_KEY=...            # NVIDIA embedding API
+GROQ_API_KEY=...              # Groq LLM (primary)
+OPENROUTER_API_KEY=...        # OpenRouter LLM (fallback)
+```
 
 ## Parser and Chunking Defaults
 
-- `PDF_PARSE_STRATEGY=fast_text_first`
-- `PDF_TEXT_MIN_CHARS=300`
-- `CHUNKING_MODE=window`
-- `DOCLING_OCR_AUTO=true` (best-effort OCR in non-strict Docling parser flow)
+- `CHUNKING_MODE=window` (or `semantic_hybrid`)
 - `IGNORE_TEST_DEMO_INDEXES=true` (startup index integrity guard + clean-index auto-switch)
+- All advanced RAG features ON by default (HyDE, reranker, decomposition, deep rewrite)
 
 ## Stale Process Troubleshooting
 

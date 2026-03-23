@@ -143,3 +143,125 @@ def add_cross_refs(graph: nx.Graph, relations: list[tuple[str, str]]) -> nx.Grap
     for src, dst in relations:
         graph.add_edge(src, dst, edge_type="xref", weight=0.4, reason="cross-reference")
     return graph
+
+
+def _node_matches(graph: nx.Graph, search: str) -> list[str]:
+    needle = str(search or "").strip().casefold()
+    if not needle:
+        return list(graph.nodes())
+    matches: list[str] = []
+    for node, attrs in graph.nodes(data=True):
+        hay = " ".join(
+            [
+                str(node),
+                str(attrs.get("doc_id", "")),
+                str(attrs.get("chunk_id", "")),
+                str(attrs.get("section", "")),
+                str(attrs.get("chunk_type", "")),
+                str(attrs.get("content_preview", ""))[:200],
+            ]
+        ).casefold()
+        if needle in hay:
+            matches.append(str(node))
+    return matches
+
+
+def build_interactive_subgraph(
+    graph: nx.Graph,
+    selected_node: str | None,
+    depth: int,
+    focus_mode: bool,
+    pinned_nodes: list[str] | None,
+    edge_types: list[str] | None,
+    search: str,
+    max_nodes: int,
+) -> tuple[nx.Graph, dict]:
+    selected = graph.copy()
+    allowed_edges = {str(item) for item in (edge_types or []) if str(item)}
+    if allowed_edges:
+        keep_edges = [
+            (a, b)
+            for a, b, attrs in selected.edges(data=True)
+            if str(attrs.get("edge_type", "edge")) in allowed_edges
+        ]
+        edge_graph = nx.Graph()
+        edge_graph.add_nodes_from(selected.nodes(data=True))
+        edge_graph.add_edges_from(
+            [(a, b, selected.get_edge_data(a, b) or {}) for a, b in keep_edges]
+        )
+        selected = edge_graph
+
+    matches = _node_matches(selected, search)
+    if search.strip():
+        selected = selected.subgraph(matches).copy()
+
+    focus_set = {str(item) for item in (pinned_nodes or []) if str(item)}
+    if selected_node:
+        focus_set.add(str(selected_node))
+
+    if focus_mode and focus_set:
+        frontier = set(focus_set)
+        neighborhood = set(focus_set)
+        hops = max(0, int(depth))
+        for _ in range(hops):
+            next_frontier: set[str] = set()
+            for node in frontier:
+                next_frontier.update(selected.neighbors(node) if node in selected else [])
+            neighborhood.update(next_frontier)
+            frontier = next_frontier
+        selected = selected.subgraph(neighborhood).copy()
+    elif selected_node and depth > 0 and selected_node in selected:
+        neighborhood = {selected_node}
+        frontier = {selected_node}
+        for _ in range(int(depth)):
+            next_frontier: set[str] = set()
+            for node in frontier:
+                next_frontier.update(selected.neighbors(node))
+            neighborhood.update(next_frontier)
+            frontier = next_frontier
+        selected = selected.subgraph(neighborhood).copy()
+
+    node_cap_hit = False
+    if selected.number_of_nodes() > max_nodes:
+        node_cap_hit = True
+        kept = list(selected.nodes())[:max_nodes]
+        selected = selected.subgraph(kept).copy()
+
+    stats = {
+        "nodes": selected.number_of_nodes(),
+        "edges": selected.number_of_edges(),
+        "node_cap_hit": node_cap_hit,
+        "match_count": len(matches),
+    }
+    return selected, stats
+
+
+def get_node_detail(graph: nx.Graph, node_id: str | None) -> dict:
+    if not node_id or node_id not in graph:
+        return {}
+    attrs = graph.nodes[node_id]
+    neighbors = list(graph.neighbors(node_id))
+    related: list[dict[str, str]] = []
+    for neighbor in neighbors[:20]:
+        edge = graph.get_edge_data(node_id, neighbor) or {}
+        related.append(
+            {
+                "neighbor": str(neighbor),
+                "edge_type": str(edge.get("edge_type", "edge")),
+                "reason": str(edge.get("reason", "")),
+            }
+        )
+    return {
+        "node_id": node_id,
+        "node_type": attrs.get("node_type", ""),
+        "doc_id": attrs.get("doc_id", ""),
+        "chunk_id": attrs.get("chunk_id", ""),
+        "page": attrs.get("page", ""),
+        "section": attrs.get("section", ""),
+        "chunk_type": attrs.get("chunk_type", ""),
+        "semantic_group_id": attrs.get("semantic_group_id", ""),
+        "content_preview": attrs.get("content_preview", ""),
+        "neighbor_count": len(neighbors),
+        "neighbors": neighbors[:100],
+        "related": related,
+    }

@@ -11,6 +11,15 @@ htmlcov/
 .mypy_cache/
 output/
 data/indices/
+data/rag.db
+data/rag.db-wal
+data/rag.db-shm
 .DS_Store
 .idea/
 .vscode/
+.claude
+.windsurf
+.playwright-mcp
+design-preview/
+data/uploads/*.pdf
+data/uploads/*.docx

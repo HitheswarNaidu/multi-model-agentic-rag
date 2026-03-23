@@ -9,36 +9,27 @@ if not exist .env (
     exit /b
 )
 
-if not exist .venv (
-    echo [ERROR] .venv directory not found!
-    echo Please run: python -m venv .venv
+set "PYTHONPATH=%CD%;%CD%\src;%PYTHONPATH%"
+
+echo Running setup check...
+python verify_setup.py --mode quick
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Setup check failed.
     pause
     exit /b
 )
 
-set "RUN_CHECK=0"
-if /I "%~1"=="--check" set "RUN_CHECK=1"
+echo.
+echo Starting FastAPI backend on port 8000...
+start "FastAPI Backend" cmd /k "python -m uvicorn api.server:app --reload --port 8000"
 
-set "PYTHONPATH=%CD%;%CD%\src;%PYTHONPATH%"
+echo Starting Next.js frontend on port 3000...
+cd frontend
+start "Next.js Frontend" cmd /k "npm run dev"
+cd ..
 
-if "%RUN_CHECK%"=="1" (
-    echo Running full setup check...
-    .venv\Scripts\python.exe verify_setup.py --mode full
-    if %ERRORLEVEL% NEQ 0 (
-        echo [ERROR] Full setup check failed.
-        pause
-        exit /b
-    )
-) else (
-    echo Running quick setup check...
-    .venv\Scripts\python.exe verify_setup.py --mode quick
-    if %ERRORLEVEL% NEQ 0 (
-        echo [ERROR] Quick setup check failed. Run run_app.bat --check for details.
-        pause
-        exit /b
-    )
-)
-
-echo Launching Streamlit...
-.venv\Scripts\python.exe -m streamlit run app/main.py
+echo.
+echo [READY] Backend: http://localhost:8000
+echo [READY] Frontend: http://localhost:3000
+echo.
 pause

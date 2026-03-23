@@ -28,9 +28,12 @@ def test_new_defaults():
 
 
 def test_llm_fallback_chain_default():
-    s = Settings()
-    assert "groq:" in s.llm_fallback_chain
-    assert "openrouter:" in s.llm_fallback_chain
+    s = Settings(_env_file=None)
+    assert s.llm_fallback_chain == (
+        "groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b,"
+        "groq:llama-3.3-70b-versatile,groq:llama-3.1-8b-instant,"
+        "openrouter:openrouter/free"
+    )
 
 
 def test_removed_fields_absent():

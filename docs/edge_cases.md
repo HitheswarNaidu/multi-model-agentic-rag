@@ -11,21 +11,16 @@ Mitigation:
 - All Streamlit entry scripts now bootstrap root + `src` paths explicitly.
 - Restart stale Streamlit process and hard refresh browser.
 
-## OCR Asset Misconfiguration
+## LlamaParse API Failures
 
 Symptom:
 
-- Ingestion fails quickly with `OCR_CONFIG_INVALID`.
+- Ingestion fails with `LLAMA_CLOUD_API_KEY` missing or invalid.
 
 Behavior:
 
-- No silent fallback when strict OCR is enabled.
-- Missing env vars and missing files are surfaced clearly in Admin and job status.
-
-## OCR Misses on Scanned PDFs (Non-Strict Mode)
-
-- Keep `DOCLING_OCR_AUTO=true` so Docling parser path attempts OCR for low-text/scanned PDFs.
-- Check `parser_strategy_selected` events for `ocr_enabled=true` when validating behavior.
+- Parser checks for API key before attempting parse.
+- Clear error message with instructions to set the key in `.env`.
 
 ## Query Before Index Ready
 
@@ -39,20 +34,16 @@ Behavior:
 
 ## Provider Failures
 
-- Query still returns structured fallback answer.
+- LLM fallback chain tries each provider in order (Groq -> OpenRouter).
 - Error code is logged (`LLM_GENERATION_FAILED`) with request correlation.
 - Quota failures are explicit (`LLM_QUOTA_EXHAUSTED`) and shown as user-facing error banners.
+- When all providers exhausted, structured error returned (not silent fallback).
 
 ## Demo/Test Index Contamination
 
 - Startup integrity check can detect suspicious catalogs (`doc1`, known demo markers).
 - Runtime auto-switches to the latest clean index when available.
 - If no clean index exists, integrity warning remains visible in Admin diagnostics.
-
-## Slow PDF Ingestion
-
-- Default strategy is `fast_text_first` to avoid Docling-only latency spikes.
-- Fallback behavior is logged via `parser_strategy_selected` and `parser_fallback_used`.
 
 ## Summarize Returns Invalid
 

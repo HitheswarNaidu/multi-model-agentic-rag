@@ -76,6 +76,13 @@ class BM25Index:
         self.add_documents_to_writer(writer, chunks)
         self.commit_writer(writer)
 
+    def delete_by_doc_id(self, doc_id: str) -> int:
+        """Delete all documents matching *doc_id*. Returns count deleted."""
+        writer = self.ix.writer()
+        count = writer.delete_by_term("doc_id", doc_id)
+        writer.commit()
+        return count
+
     @staticmethod
     def _parse_metadata(raw: str | None) -> dict[str, str]:
         if not raw:

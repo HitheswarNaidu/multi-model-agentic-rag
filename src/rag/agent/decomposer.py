@@ -15,8 +15,7 @@ class Decomposer:
             f"Sub-questions (return 1 per line):"
         )
 
-        response = self.llm.generate(contexts=[], query=prompt)
-        text = response.get("answer", "")
+        text = self.llm.call_raw(prompt)
         questions = [
             line.strip("- ").strip()
             for line in text.split("\n")

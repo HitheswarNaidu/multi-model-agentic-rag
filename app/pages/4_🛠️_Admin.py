@@ -165,7 +165,7 @@ with c4:
     chunking_mode = st.selectbox(
         "Chunking mode",
         options=["window", "semantic_hybrid"],
-        index=0 if str(tuning.get("chunking_mode", "window")) == "window" else 1,
+        index=0 if str(tuning.get("chunking_mode", "semantic_hybrid")) == "window" else 1,
         help="semantic_hybrid preserves semantic boundaries and can improve answer quality.",
     )
     index_swap_mode = st.selectbox(

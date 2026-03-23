@@ -275,6 +275,17 @@ class VectorStore:
             )
         return matches
 
+    def delete_by_doc_id(self, doc_id: str) -> int:
+        """Delete all vectors matching *doc_id*. Returns count deleted."""
+        try:
+            existing = self.collection.get(where={"doc_id": doc_id})
+            ids = existing.get("ids", [])
+            if ids:
+                self.collection.delete(ids=ids)
+            return len(ids)
+        except Exception:
+            return 0
+
 
 class NoOpVectorStore:
     """BM25-only fallback when vector retrieval is disabled or unavailable."""

@@ -17,8 +17,9 @@ class Settings(BaseSettings):
     groq_api_key: str = Field("")
     openrouter_api_key: str = Field("")
     llm_fallback_chain: str = Field(
+        "groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b,"
         "groq:llama-3.3-70b-versatile,groq:llama-3.1-8b-instant,"
-        "openrouter:meta-llama/llama-3.3-70b-instruct:free,openrouter:openrouter/free"
+        "openrouter:openrouter/free"
     )
 
     # Advanced RAG features (all ON by default)
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
     expert_mode_default: bool = Field(False)
 
     # Chunking
-    chunking_mode: str = Field("window")
+    chunking_mode: str = Field("semantic_hybrid")
 
     # Index management
     ignore_test_demo_indexes: bool = Field(True)

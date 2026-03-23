@@ -1,6 +1,6 @@
 import networkx as nx
 
-from app.components.graph_viewer import build_interactive_subgraph, get_node_detail
+from rag.visualization.graph_builder import build_interactive_subgraph, get_node_detail
 
 
 def _make_graph() -> nx.Graph:

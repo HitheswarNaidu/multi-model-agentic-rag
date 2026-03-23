@@ -24,6 +24,7 @@ from rag.indexing.vector_store import NoOpVectorStore, VectorStore
 from rag.ingestion.loader import iter_documents
 from rag.ingestion.parser import LlamaParseError, parse_document
 from rag.utils.audit_logger import AuditLogger, hash_query, new_request_id, utc_now_iso
+from rag.utils import database as db
 from rag.utils.index_registry import IndexRegistry
 from rag.utils.job_store import JobStore
 
@@ -58,6 +59,11 @@ class Pipeline:
         self.index_registry.ensure_initialized()
         self.job_store = JobStore(jobs_file)
         self.audit_logger = AuditLogger(LOGS_DIR / "events.jsonl")
+
+        # Initialize SQLite database
+        db_path = DATA_DIR / "rag.db"
+        db.init_db(db_path)
+        self._migrate_existing_data_to_sqlite()
         self._job_threads: dict[str, threading.Thread] = {}
         self._thread_lock = threading.Lock()
         self._runtime_lock = threading.Lock()
@@ -65,6 +71,32 @@ class Pipeline:
         self._active_index_id: str | None = None
         if not lazy_init:
             self._ensure_runtime_initialized()
+
+    def _migrate_existing_data_to_sqlite(self) -> None:
+        """One-time migration of file-based data into SQLite. Skips if already populated."""
+        try:
+            existing = db.fetchone("SELECT COUNT(*) as n FROM chunks")
+            if existing and existing["n"] > 0:
+                return  # Already migrated
+        except Exception:
+            return
+
+        import logging
+        logger = logging.getLogger(__name__)
+        try:
+            active = self.index_registry.get_active()
+            catalog_path = Path(active["chunk_catalog"])
+            stats = db.migrate_from_files(
+                chunk_catalog_path=catalog_path,
+                jobs_jsonl_path=INDEX_DIR / "ingestion_jobs.jsonl",
+                events_jsonl_path=LOGS_DIR / "events.jsonl",
+                answers_dir=ANSWERS_DIR,
+                logs_dir=LOGS_DIR,
+            )
+            if any(v > 0 for v in stats.values()):
+                logger.info("Migrated existing data to SQLite: %s", stats)
+        except Exception as exc:
+            logger.warning("SQLite migration skipped: %s", exc)
 
     def _ensure_runtime_initialized(self) -> None:
         if self._runtime_ready:
@@ -657,6 +689,28 @@ class Pipeline:
             flush_vector()
 
         self._write_chunk_catalog(records, Path(staging["chunk_catalog"]))
+
+        # Persist chunks to SQLite
+        try:
+            # Upsert documents
+            doc_map: dict[str, dict] = {}
+            for r in records:
+                did = r.get("doc_id", "")
+                if did and did not in doc_map:
+                    doc_map[did] = {
+                        "doc_type": r.get("doc_type", ""),
+                        "source_path": r.get("source_path"),
+                        "source_hash": r.get("source_hash"),
+                    }
+            for did, info in doc_map.items():
+                count = sum(1 for r in records if r.get("doc_id") == did)
+                db.upsert_document(did, info["doc_type"], info["source_path"], info["source_hash"], count)
+            for r in records:
+                r["index_id"] = staging.get("index_id")
+            db.insert_chunks(records)
+        except Exception:
+            pass  # SQLite write failure should not block indexing
+
         return {
             "records": records,
             "chunks_indexed": indexed_chunks,
@@ -1078,6 +1132,10 @@ class Pipeline:
             }
             log_path.write_text(json.dumps(log_data, indent=2), encoding="utf-8")
 
+            # Save to SQLite
+            db.save_answer(request_id, llm_payload)
+            db.save_query_log(request_id, log_data)
+
             self.audit_logger.log_event(
                 "retrieval_finished",
                 request_id=request_id,
@@ -1169,11 +1227,80 @@ class Pipeline:
 
     def saved_chunks(self) -> list[dict]:
         if not self.cached_chunks:
+            # Try SQLite first, fall back to JSONL catalog
+            try:
+                rows = db.get_all_chunks()
+                if rows:
+                    self.cached_chunks = rows
+                    return self.cached_chunks
+            except Exception:
+                pass
             self.cached_chunks = self._read_chunk_catalog(self._active_catalog_path())
         return self.cached_chunks
 
     def list_documents(self) -> list[str]:
+        try:
+            docs = db.list_documents()
+            if docs:
+                return [d["doc_id"] for d in docs]
+        except Exception:
+            pass
         return sorted({c.get("doc_id") for c in self.saved_chunks() if c.get("doc_id")})
+
+    def delete_document(self, doc_id: str) -> dict:
+        """Remove a document and its chunks from all indices."""
+        self._ensure_runtime_initialized()
+
+        # 1. Remove from SQLite
+        removed_count = db.delete_document(doc_id)
+
+        # 2. Also remove from JSONL catalog (keep in sync during transition)
+        catalog_path = self._active_catalog_path()
+        all_chunks = self._read_chunk_catalog(catalog_path)
+        remaining = [c for c in all_chunks if c.get("doc_id") != doc_id]
+        if len(remaining) < len(all_chunks):
+            self._write_chunk_catalog(remaining, catalog_path)
+
+        self.cached_chunks = []  # Invalidate cache
+
+        if removed_count == 0:
+            return {"deleted": False, "doc_id": doc_id, "error": "Document not found"}
+
+        # 3. Remove from BM25 index
+        bm25_deleted = 0
+        if self.bm25:
+            bm25_deleted = self.bm25.delete_by_doc_id(doc_id)
+
+        # 4. Remove from vector store
+        vector_deleted = 0
+        if self.vector and not isinstance(self.vector, NoOpVectorStore):
+            vector_deleted = self.vector.delete_by_doc_id(doc_id)
+
+        # 5. Remove uploaded file
+        upload_path = UPLOAD_DIR / doc_id
+        if upload_path.exists():
+            upload_path.unlink()
+
+        self.audit_logger.log_event(
+            "document_deleted",
+            doc_id=doc_id,
+            chunks_removed=removed_count,
+            bm25_deleted=bm25_deleted,
+            vector_deleted=vector_deleted,
+        )
+        db.log_audit_event(
+            "document_deleted",
+            doc_id=doc_id,
+            chunks_removed=removed_count,
+        )
+
+        return {
+            "deleted": True,
+            "doc_id": doc_id,
+            "chunks_removed": removed_count,
+            "bm25_deleted": bm25_deleted,
+            "vector_deleted": vector_deleted,
+        }
 
     def _normalize_filters(self, filters: dict | None) -> dict | None:
         if not filters:
@@ -1181,6 +1308,10 @@ class Pipeline:
         normalized = dict(filters)
         known_docs = self.list_documents()
         doc_lookup = {doc.casefold(): doc for doc in known_docs}
+
+        # Frontend sends "document" key — normalize to "doc_id"
+        if "document" in normalized and "doc_id" not in normalized:
+            normalized["doc_id"] = normalized.pop("document")
 
         doc_id = normalized.get("doc_id")
         if doc_id:

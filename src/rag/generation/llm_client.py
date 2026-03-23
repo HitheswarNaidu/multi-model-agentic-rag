@@ -26,7 +26,21 @@ class LLMClient:
     ) -> None:
         self.groq_api_key = groq_api_key
         self.openrouter_api_key = openrouter_api_key
-        self.chain = self._parse_chain(fallback_chain)
+        # Filter chain to only providers that have keys configured
+        all_entries = self._parse_chain(fallback_chain)
+        self.chain = [
+            (p, m) for p, m in all_entries
+            if (p == "groq" and groq_api_key)
+            or (p == "openrouter" and openrouter_api_key)
+            or p not in ("groq", "openrouter")
+        ]
+        skipped = len(all_entries) - len(self.chain)
+        if skipped:
+            providers_skipped = {p for p, _ in all_entries} - {p for p, _ in self.chain}
+            logger.info(
+                "Filtered %d unconfigured provider(s) from fallback chain: %s",
+                skipped, ", ".join(sorted(providers_skipped)),
+            )
 
     @staticmethod
     def _parse_chain(chain_str: str) -> list[tuple[str, str]]:
@@ -64,8 +78,12 @@ class LLMClient:
 
     def _call_provider(self, provider: str, model: str, prompt: str) -> dict:
         if provider == "groq":
+            if not self.groq_api_key:
+                raise ValueError("Groq API key not configured, skipping provider")
             llm = self._build_groq(model)
         elif provider == "openrouter":
+            if not self.openrouter_api_key:
+                raise ValueError("OpenRouter API key not configured, skipping provider")
             llm = self._build_openrouter(model)
         else:
             raise ValueError(f"Unknown LLM provider: {provider}")
@@ -121,9 +139,30 @@ class LLMClient:
             data["conflict"] = False
         return data
 
+    def call_raw(self, prompt: str) -> str:
+        """Send a raw prompt and return the text response (no JSON parsing)."""
+        for provider, model in self.chain:
+            try:
+                if provider == "groq":
+                    if not self.groq_api_key:
+                        continue
+                    llm = self._build_groq(model)
+                elif provider == "openrouter":
+                    if not self.openrouter_api_key:
+                        continue
+                    llm = self._build_openrouter(model)
+                else:
+                    continue
+                response = llm.invoke(prompt)
+                return response.content if hasattr(response, "content") else str(response)
+            except Exception:
+                continue
+        return ""
+
     def generate(self, contexts: list[str], query: str, intent: str = "general") -> dict:
         prompt = build_prompt(contexts, query, intent=intent)
 
+        last_exc: Exception | None = None
         for idx, (provider, model) in enumerate(self.chain):
             try:
                 result = self._call_provider(provider, model, prompt)
@@ -135,18 +174,30 @@ class LLMClient:
                 logger.warning(
                     "Rate limited by %s:%s, trying next in chain", provider, model
                 )
+                last_exc = None
+                continue
+            except Exception as exc:
+                logger.warning(
+                    "Provider %s:%s failed (%s), trying next in chain",
+                    provider, model, exc,
+                )
+                last_exc = exc
                 continue
 
-        raise LLMQuotaExhaustedError(
+        msg = (
             "All LLM providers in the fallback chain are exhausted. "
             "Configure additional providers or wait for rate limits to reset."
         )
+        raise LLMQuotaExhaustedError(msg) from last_exc
 
 
 class MockLLMClient(LLMClient):
     def __init__(self, payload: dict | None = None):
         self.payload = payload or {"answer": "mock", "provenance": []}
         self.chain = []
+
+    def call_raw(self, prompt: str) -> str:
+        return self.payload.get("answer", "mock")
 
     def generate(self, contexts: list[str], query: str, intent: str = "general") -> dict:
         if "provenance" not in self.payload:

@@ -89,7 +89,7 @@ with left:
         chunking_mode = st.selectbox(
             "Chunking mode",
             options=["window", "semantic_hybrid"],
-            index=0,
+            index=1,
             help="semantic_hybrid improves semantic coherence with slight indexing overhead.",
         )
 
@@ -165,7 +165,7 @@ with left:
             st.error(status.get("error", "Indexing failed"))
             if status.get("missing_paths"):
                 st.code("\n".join(str(item) for item in status["missing_paths"]))
-            st.info("Open Admin page and run `Test OCR Setup` to validate Docling OCR paths.")
+            st.info("Check Admin page for provider status and index diagnostics.")
         elif state == "completed":
             st.success("Indexing completed. You can query the new index now.")
             st.session_state["docs_refresh_hint"] = True

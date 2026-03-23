@@ -65,6 +65,21 @@ def test_fallback_on_rate_limit(mock_call):
 
 
 @patch.object(LLMClient, "_call_provider")
+def test_skips_unconfigured_providers_before_execution(mock_call):
+    mock_call.return_value = {"answer": "from openrouter", "provenance": [], "conflict": False}
+    client = LLMClient(
+        groq_api_key="",
+        openrouter_api_key="sk-or-test",
+        fallback_chain="groq:model-a,openrouter:model-b",
+    )
+    result = client.generate([], "test query")
+    assert result["answer"] == "from openrouter"
+    assert result["_llm_provider"] == "openrouter"
+    assert result["_llm_fallback_used"] is False
+    mock_call.assert_called_once_with("openrouter", "model-b", mock_call.call_args.args[2])
+
+
+@patch.object(LLMClient, "_call_provider")
 def test_all_exhausted_raises(mock_call):
     mock_call.side_effect = RateLimitError("429")
     client = LLMClient(

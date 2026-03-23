@@ -2,7 +2,7 @@
 
 ## Scope
 
-Local Agentic RAG with chat-first UX, strict OCR preflight, and structured auditability.
+Local Agentic RAG with chat-first UX, LlamaParse cloud parsing, and structured auditability.
 
 ## UI Architecture
 
@@ -40,21 +40,20 @@ Stable `query_fast` fields:
 
 ## Retrieval Behavior
 
-- Fast mode is default.
-- Deep helpers are explicit feature flags:
-  - reranker
-  - HyDE
-  - deep rewrite
-  - decomposition
+- All advanced RAG features ON by default:
+  - reranker (cross-encoder)
+  - HyDE (hypothetical document embeddings)
+  - deep rewrite (LLM-based query rewriting)
+  - decomposition (multi-hop query splitting)
+- Hybrid retrieval: BM25 + Vector with RRF fusion (configurable weights).
 - Summarization requires grounded provenance from retrieved chunk ids.
 - Filters support `doc_id` and `doc_ids`.
 
-## OCR Contract
+## Provider Stack
 
-- `DOCLING_OCR_FORCE=true` requires valid OCR model asset paths.
-- Ingestion fails fast with `OCR_CONFIG_INVALID` when assets are missing.
-- Non-strict PDF parse strategy is configurable via `PDF_PARSE_STRATEGY`.
-- `DOCLING_OCR_AUTO=true` allows best-effort Docling OCR in non-strict parser flows.
+- **Parsing:** LlamaParse cloud API via `LLAMA_CLOUD_API_KEY`.
+- **Embeddings:** NVIDIA `nvidia/llama-nemotron-embed-1b-v2` via `NVIDIA_API_KEY`.
+- **LLM:** Configurable fallback chain via `LLM_FALLBACK_CHAIN` (Groq primary, OpenRouter fallback).
 
 ## Index Integrity Contract
 
@@ -72,7 +71,12 @@ Important events:
 
 - `query_started`, `retrieval_finished`, `llm_finished`, `validation_finished`, `query_finished`
 - `ingestion_job_started`, `ingestion_job_progress`, `ingestion_job_finished`, `ingestion_failed`
-- `ocr_config_validated`, `ocr_config_error`
-- `parser_strategy_selected`, `parser_fallback_used`, `summary_provenance_missing`
+- `summary_provenance_missing`
 - `index_integrity_checked`, `index_integrity_flagged`, `index_auto_switched`
 - `kg_view_loaded`, `kg_node_selected`, `kg_subgraph_expanded`, `kg_filter_applied`, `kg_chat_bridge_invoked`
+
+LLM provider tracking fields:
+
+- `_llm_provider`
+- `_llm_model`
+- `_llm_fallback_used`

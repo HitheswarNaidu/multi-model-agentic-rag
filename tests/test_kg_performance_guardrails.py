@@ -1,6 +1,6 @@
 import networkx as nx
 
-from app.components.graph_viewer import build_interactive_subgraph
+from rag.visualization.graph_builder import build_interactive_subgraph
 
 
 def test_node_cap_enforced_and_flagged():

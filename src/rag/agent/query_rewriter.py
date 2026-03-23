@@ -55,6 +55,10 @@ class QueryRewriter:
             f"Rewritten Input:"
         )
 
-        response = self.llm.generate(contexts=[], query=prompt)
-        rewritten = response.get("answer", "").strip()
-        return rewritten if rewritten else query
+        rewritten = self.llm.call_raw(prompt).strip()
+        # Strip quotes/markdown the LLM may wrap around the rewrite
+        rewritten = rewritten.strip('"\'`')
+        # If the LLM returned garbage, JSON, or INSUFFICIENT_DATA, use original
+        if not rewritten or "INSUFFICIENT" in rewritten or rewritten.startswith("{"):
+            return query
+        return rewritten

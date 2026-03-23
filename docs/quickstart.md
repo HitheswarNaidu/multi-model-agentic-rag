@@ -10,32 +10,29 @@ pip install -r requirements.txt
 
 ## 2) Configure `.env`
 
-Minimum:
+Copy `.env.example` to `.env` and set your API keys:
 
 ```env
-GEMINI_API_KEY=
-EMBEDDING_MODEL=all-mpnet-base-v2
-VECTOR_ENABLED=false
-DOCLING_OCR_FORCE=false
-PDF_PARSE_STRATEGY=fast_text_first
-PDF_TEXT_MIN_CHARS=300
+LLAMA_CLOUD_API_KEY=...       # LlamaParse document parsing
+NVIDIA_API_KEY=...            # NVIDIA embedding API
+GROQ_API_KEY=...              # Groq LLM (primary)
+OPENROUTER_API_KEY=...        # OpenRouter LLM (fallback)
+```
+
+Default configuration (already set in `.env.example`):
+
+```env
+EMBEDDING_MODEL=nvidia/llama-nemotron-embed-1b-v2
+VECTOR_ENABLED=true
+LLM_FALLBACK_CHAIN=groq:openai/gpt-oss-120b,groq:openai/gpt-oss-20b,groq:llama-3.3-70b-versatile,groq:llama-3.1-8b-instant,openrouter:openrouter/free
+HYDE_ENABLED=true
+DEEP_REWRITE_ENABLED=true
+DECOMPOSITION_ENABLED=true
+RERANKER_ENABLED=true
 CHUNKING_MODE=window
-DOCLING_OCR_AUTO=true
 IGNORE_TEST_DEMO_INDEXES=true
 ```
 
-Enable strict OCR only if you have all RapidOCR assets:
-
-```env
-DOCLING_OCR_FORCE=true
-DOCLING_OCR_DET_MODEL_PATH=...
-DOCLING_OCR_CLS_MODEL_PATH=...
-DOCLING_OCR_REC_MODEL_PATH=...
-DOCLING_OCR_REC_KEYS_PATH=...
-DOCLING_OCR_FONT_PATH=...
-```
-
-With `DOCLING_OCR_AUTO=true` (default), non-strict runs will still attempt Docling OCR on scanned/low-text PDFs when Docling parser path is used.
 With `IGNORE_TEST_DEMO_INDEXES=true` (default), startup auto-ignores suspicious demo/test indexes when a clean index is available.
 
 ## 3) Launch

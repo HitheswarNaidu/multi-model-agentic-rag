@@ -7,22 +7,23 @@ import sys
 from pathlib import Path
 
 REQUIRED_PACKAGES = [
-    "streamlit",
-    "docling",
+    "llama_parse",
     "chromadb",
     "whoosh",
-    "sentence_transformers",
-    "google.genai",
     "langchain",
+    "langchain_nvidia_ai_endpoints",
+    "langchain_groq",
+    "langchain_openai",
     "pydantic",
     "pandas",
     "dotenv",
+    "fastapi",
+    "uvicorn",
 ]
 
 REQUIRED_DIRS = [
     "data/uploads",
-    "data/indices/bm25",
-    "data/indices/vector",
+    "data/indices/versions",
     "output/logs",
     "output/answers",
 ]
