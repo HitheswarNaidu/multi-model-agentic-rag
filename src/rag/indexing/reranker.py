@@ -13,7 +13,7 @@ class Reranker:
 
     def __init__(
         self,
-        model: str = "nvidia/llama-3.2-nv-rerankqa-1b-v2",
+        model: str = "nv-rerank-qa-mistral-4b:1",
         api_key: str | None = None,
     ):
         self.model_name = model
@@ -62,7 +62,7 @@ class Reranker:
         }
 
         resp = client.post(
-            f"https://ai.api.nvidia.com/v1/retrieval/{self.model_name}/reranking",
+            "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking",
             json=payload,
             timeout=15,
         )

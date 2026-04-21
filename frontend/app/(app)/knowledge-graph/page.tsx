@@ -46,35 +46,39 @@ export default function KnowledgeGraphPage() {
         const rawNodes = Array.isArray(raw?.nodes) ? raw.nodes : [];
         const rawEdges = Array.isArray(raw?.edges) ? raw.edges : [];
 
-        const nodes: GraphNode[] = rawNodes.map((n: Record<string, unknown>) => {
-          const nodeType = String(n.node_type ?? n.type ?? "chunk");
+        const nodes: GraphNode[] = rawNodes.map((n: unknown) => {
+          const rec = n as Record<string, unknown>;
+          const nodeType = String(rec.node_type ?? rec.type ?? "chunk");
           const mappedType = nodeType === "doc" ? "document" : nodeType;
-          const docId = String(n.doc_id ?? "");
-          const chunkId = String(n.chunk_id ?? "");
+          const docId = String(rec.doc_id ?? "");
+          const chunkId = String(rec.chunk_id ?? "");
           const label =
             mappedType === "document"
-              ? docId || String(n.id)
-              : chunkId || String(n.id);
+              ? docId || String(rec.id)
+              : chunkId || String(rec.id);
           return {
-            id: String(n.id),
+            id: String(rec.id),
             label,
             type: mappedType,
             doc_id: docId || undefined,
-            page: n.page != null ? Number(n.page) : undefined,
-            section: n.section ? String(n.section) : undefined,
-            content: n.content_preview
-              ? String(n.content_preview)
-              : n.content
-                ? String(n.content)
+            page: rec.page != null ? Number(rec.page) : undefined,
+            section: rec.section ? String(rec.section) : undefined,
+            content: rec.content_preview
+              ? String(rec.content_preview)
+              : rec.content
+                ? String(rec.content)
                 : undefined,
           } as GraphNode;
         });
 
-        const edges: GraphEdge[] = rawEdges.map((e: Record<string, unknown>) => ({
-          source: String(e.source),
-          target: String(e.target),
-          weight: e.weight != null ? Number(e.weight) : undefined,
-        }));
+        const edges: GraphEdge[] = rawEdges.map((e: unknown) => {
+          const rec = e as Record<string, unknown>;
+          return {
+            source: String(rec.source),
+            target: String(rec.target),
+            weight: rec.weight != null ? Number(rec.weight) : undefined,
+          };
+        });
 
         if (!cancelled) {
           setGraphData({ nodes, edges });

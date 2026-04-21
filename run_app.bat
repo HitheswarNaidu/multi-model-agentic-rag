@@ -12,7 +12,7 @@ if not exist .env (
 set "PYTHONPATH=%CD%;%CD%\src;%PYTHONPATH%"
 
 echo Running setup check...
-python verify_setup.py --mode quick
+.venv\Scripts\python.exe verify_setup.py --mode quick
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Setup check failed.
     pause
@@ -21,7 +21,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo Starting FastAPI backend on port 8000...
-start "FastAPI Backend" cmd /k "python -m uvicorn api.server:app --reload --port 8000"
+start "FastAPI Backend" cmd /k ".venv\Scripts\python.exe -m uvicorn api.server:app --reload --port 8000"
 
 echo Starting Next.js frontend on port 3000...
 cd frontend

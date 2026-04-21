@@ -353,7 +353,8 @@ async def get_job(job_id: str):
 async def get_chunks():
     """All indexed chunks from the active catalog."""
     pipe = _get_pipeline()
-    return pipe.saved_chunks()
+    chunks = pipe.saved_chunks()
+    return [{**c, "id": c.get("chunk_id")} for c in chunks]
 
 
 # ---------------------------------------------------------------------------

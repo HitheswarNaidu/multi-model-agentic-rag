@@ -22,14 +22,10 @@ export function SavedAnswers({ answers }: SavedAnswersProps) {
 
   if (answers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
-        <div className="mb-3 text-3xl opacity-40">&#128196;</div>
-        <p className="text-sm font-medium text-muted-foreground">
-          No saved answers yet.
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground/60">
-          Answers will appear here after you query from the Chat page.
-        </p>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-700 bg-zinc-900 py-16">
+        <div className="mb-3 text-4xl opacity-40">&#128196;</div>
+        <p className="text-sm font-medium text-zinc-400">No saved answers yet.</p>
+        <p className="mt-1 text-xs text-zinc-600">Answers will appear here after you query from the Chat page.</p>
       </div>
     );
   }
@@ -41,29 +37,23 @@ export function SavedAnswers({ answers }: SavedAnswersProps) {
         const formattedDate = formatTimestamp(answer.timestamp);
 
         return (
-          <Card key={answer.id} className="transition-colors hover:bg-card/80">
+          <Card key={answer.id} className="border-zinc-700 bg-zinc-800/50 transition-colors hover:bg-zinc-800">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
-                <CardTitle className="text-sm font-medium leading-snug">
+                <CardTitle className="text-sm font-medium leading-snug text-zinc-200">
                   {answer.question}
                 </CardTitle>
-                <span className="shrink-0 text-[10px] text-muted-foreground">
-                  {formattedDate}
-                </span>
+                <span className="shrink-0 text-[10px] text-zinc-500">{formattedDate}</span>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Answer text */}
-              <div className="text-sm leading-relaxed text-foreground/80">
-                {isExpanded
-                  ? answer.answer
-                  : truncate(answer.answer, 200)}
+              <div className="text-sm leading-relaxed text-zinc-300">
+                {isExpanded ? answer.answer : truncate(answer.answer, 200)}
                 {answer.answer.length > 200 && (
                   <button
-                    onClick={() =>
-                      setExpandedId(isExpanded ? null : answer.id)
-                    }
-                    className="ml-1 text-xs font-medium text-primary hover:underline"
+                    onClick={() => setExpandedId(isExpanded ? null : answer.id)}
+                    className="ml-1 text-xs font-medium text-orange-400 hover:underline"
                   >
                     {isExpanded ? "Show less" : "Show more"}
                   </button>
@@ -74,7 +64,7 @@ export function SavedAnswers({ answers }: SavedAnswersProps) {
               {answer.citations.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {answer.citations.map((citation, idx) => (
-                    <Badge key={idx} variant="secondary">
+                    <Badge key={idx} className="bg-orange-500/20 text-orange-400 border-orange-500/30">
                       {citation}
                     </Badge>
                   ))}
@@ -83,11 +73,11 @@ export function SavedAnswers({ answers }: SavedAnswersProps) {
 
               {/* Expanded metadata */}
               {isExpanded && answer.metadata && (
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                <div className="rounded-lg bg-zinc-900 p-3 border border-zinc-700">
+                  <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
                     Metadata
                   </p>
-                  <pre className="text-xs leading-relaxed text-muted-foreground">
+                  <pre className="text-xs leading-relaxed text-zinc-400">
                     {JSON.stringify(answer.metadata, null, 2)}
                   </pre>
                 </div>

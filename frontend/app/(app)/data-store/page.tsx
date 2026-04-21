@@ -92,31 +92,14 @@ export default function DataStorePage() {
     return (
       <div className="p-8">
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-foreground">Data Store</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse indexed chunks and saved answers.
-          </p>
+          <h1 className="text-xl font-bold text-orange-400">Data Store</h1>
+          <p className="mt-1 text-sm text-zinc-500">Browse indexed chunks and saved answers.</p>
         </div>
         <div className="flex items-center justify-center py-24">
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <svg
-              className="h-4 w-4 animate-spin"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
+          <div className="flex items-center gap-3 text-sm text-zinc-500">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             Loading data store...
           </div>
@@ -129,17 +112,13 @@ export default function DataStorePage() {
     return (
       <div className="p-8">
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-foreground">Data Store</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse indexed chunks and saved answers.
-          </p>
+          <h1 className="text-xl font-bold text-orange-400">Data Store</h1>
+          <p className="mt-1 text-sm text-zinc-500">Browse indexed chunks and saved answers.</p>
         </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
-          <div className="mb-3 text-3xl opacity-40">&#9888;</div>
-          <p className="text-sm font-medium text-destructive">{error}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Make sure the backend API is running.
-          </p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-orange-500/30 bg-zinc-900 py-16">
+          <div className="mb-3 text-4xl opacity-40">&#9888;</div>
+          <p className="text-sm font-medium text-red-400">{error}</p>
+          <p className="mt-1 text-xs text-zinc-500">Make sure the backend API is running.</p>
         </div>
       </div>
     );
@@ -151,10 +130,8 @@ export default function DataStorePage() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-foreground">Data Store</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Browse indexed chunks and saved answers.
-        </p>
+        <h1 className="text-xl font-bold text-orange-400">Data Store</h1>
+        <p className="mt-1 text-sm text-zinc-500">Browse indexed chunks and saved answers.</p>
       </div>
 
       {/* Stats row */}
@@ -166,21 +143,16 @@ export default function DataStorePage() {
 
       {/* Document list with delete */}
       {uniqueDocIds.length > 0 && (
-        <div className="mb-6 space-y-1.5">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Documents
-          </p>
+        <div className="mb-6 space-y-2">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Documents</p>
           <div className="flex flex-wrap gap-2">
             {uniqueDocIds.map((docId) => (
-              <div
-                key={docId}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5"
-              >
-                <span className="text-xs text-foreground">{docId}</span>
+              <div key={docId} className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5">
+                <span className="text-xs text-zinc-300">{docId}</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                  className="h-5 w-5 p-0 text-zinc-500 hover:text-red-400 hover:bg-zinc-700"
                   onClick={() => handleDelete(docId)}
                   disabled={deleting === docId}
                 >
@@ -199,14 +171,14 @@ export default function DataStorePage() {
         </div>
       )}
 
-      <Separator className="mb-6" />
+      <Separator className="mb-6 border-zinc-800" />
 
       {/* Tabs */}
       {hasData ? (
-        <Tabs defaultValue="chunks">
-          <TabsList>
-            <TabsTrigger value="chunks">Chunks</TabsTrigger>
-            <TabsTrigger value="answers">Saved Answers</TabsTrigger>
+        <Tabs defaultValue="chunks" className="text-zinc-300">
+          <TabsList className="bg-zinc-800 border border-zinc-700">
+            <TabsTrigger value="chunks" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">Chunks</TabsTrigger>
+            <TabsTrigger value="answers" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">Saved Answers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="chunks" className="mt-4">
@@ -218,14 +190,10 @@ export default function DataStorePage() {
           </TabsContent>
         </Tabs>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
-          <div className="mb-3 text-3xl opacity-40">&#128451;</div>
-          <p className="text-sm font-medium text-muted-foreground">
-            No indexed chunks yet.
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground/60">
-            Upload files from the Chat page to get started.
-          </p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-700 bg-zinc-900 py-16">
+          <div className="mb-3 text-4xl opacity-40">&#128451;</div>
+          <p className="text-sm font-medium text-zinc-400">No indexed chunks yet.</p>
+          <p className="mt-1 text-xs text-zinc-600">Upload files from the Chat page to get started.</p>
         </div>
       )}
     </div>
@@ -234,14 +202,10 @@ export default function DataStorePage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <Card size="sm">
-      <CardContent className="flex flex-col gap-1">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          {label}
-        </span>
-        <span className="text-2xl font-bold tabular-nums text-foreground">
-          {value.toLocaleString()}
-        </span>
+    <Card size="sm" className="border-zinc-700 bg-zinc-800/50">
+      <CardContent className="flex flex-col gap-1 p-4">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">{label}</span>
+        <span className="text-3xl font-bold tabular-nums text-orange-400">{value.toLocaleString()}</span>
       </CardContent>
     </Card>
   );
